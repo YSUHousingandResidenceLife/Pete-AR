@@ -1,12 +1,6 @@
-<!-- Load libs with fallbacks (Three.js, GLTFLoader, MindAR) -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js" crossorigin="anonymous"
-        onerror="this.onerror=null;this.src='https://unpkg.com/three@0.152.2/build/three.min.js'"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js" crossorigin="anonymous"
-        onerror="this.onerror=null;this.src='https://unpkg.com/three@0.152.2/examples/js/loaders/GLTFLoader.js'"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js" crossorigin="anonymous"
-        onerror="this.onerror=null;this.src='https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js'"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
   <title>Pete WebAR (MindAR)</title>
@@ -22,13 +16,18 @@
     #cta-wrap{position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:12px;}
     #cta-wrap a{pointer-events:auto;text-decoration:none;background:#ffffffee;color:#000;border-radius:999px;padding:12px 16px;font-weight:700;}
     #subtitle{position:fixed;bottom:76px;left:12px;right:12px;pointer-events:none;background:rgba(0,0,0,.55);color:#fff;padding:8px 12px;border-radius:12px;text-align:center;font-size:14px;}
-    #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;opacity:.75;background:rgba(0,0,0,.35);padding:6px 8px;border-radius:8px;}
+    #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;opacity:.85;background:rgba(0,0,0,.35);padding:6px 8px;border-radius:8px;}
   </style>
 
-  <!-- Load libs in correct order -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+  <!-- Libraries with fallbacks (order matters) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js" crossorigin="anonymous"
+          onerror="this.onerror=null;this.src='https://unpkg.com/three@0.152.2/build/three.min.js'"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js" crossorigin="anonymous"
+          onerror="this.onerror=null;this.src='https://unpkg.com/three@0.152.2/examples/js/loaders/GLTFLoader.js'"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js" crossorigin="anonymous"
+          onerror="this.onerror=null;this.src='https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js'"></script>
 </head>
 <body>
   <div id="ar-container"></div>
@@ -53,19 +52,29 @@
   <audio id="voice" src="./assets/pete-voice.mp3" preload="auto"></audio>
 
   <script>
-function waitForLibs(maxMs=15000){
-  const start = Date.now();
-  return new Promise((resolve, reject)=>{
-    (function poll(){
-      const ok = !!(window.THREE && window.THREE.GLTFLoader &&
-                    window.MINDAR && window.MINDAR.IMAGE &&
-                    window.MINDAR.IMAGE.MindARThree);
-      if (ok) return resolve();
-      if (Date.now()-start > maxMs) return reject(new Error('MindAR/THREE libs failed to load'));
-      setTimeout(poll, 80);
-    })();
-  });
-}
+    // Wait for libs so window.MINDAR.IMAGE exists
+    function waitForLibs(maxMs=15000){
+      const start = Date.now();
+      return new Promise((resolve, reject)=>{
+        (function poll(){
+          const ok = !!(window.THREE && window.THREE.GLTFLoader &&
+                        window.MINDAR && window.MINDAR.IMAGE &&
+                        window.MINDAR.IMAGE.MindARThree);
+          if (ok) return resolve();
+          if (Date.now()-start > maxMs) return reject(new Error('MindAR/THREE libs failed to load'));
+          setTimeout(poll, 80);
+        })();
+      });
+    }
+
+    // Explicit camera permission preflight
+    async function requestCameraPreflight(){
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        throw new Error('Camera API not available in this browser');
+      }
+      const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      tempStream.getTracks().forEach(t => t.stop());
+    }
 
     (function(){
       const startBtn=document.getElementById('startBtn');
@@ -91,20 +100,41 @@ function waitForLibs(maxMs=15000){
       startBtn.addEventListener('click', async ()=>{
         hud.style.display='block';
         gate.style.display='none';
-        try{ await voice.play(); voice.pause(); voice.currentTime=0; }catch(e){}
-        try{ await waitForLibs(); }catch(err){ debug.textContent='Error: '+err.message; return; }
-        debug.textContent='Libs: OK';
 
-        const mindarThree=new window.MINDAR.IMAGE.MindARThree({
+        // unlock audio
+        try{ await voice.play(); voice.pause(); voice.currentTime=0; }catch(e){}
+
+        // libs
+        try{ await waitForLibs(); debug.textContent='Libs: OK'; }
+        catch(err){ debug.textContent='Error loading libs: '+err.message; return; }
+
+        // camera permission
+        try{
+          debug.textContent='Requesting camera…';
+          await requestCameraPreflight();
+          debug.textContent='Camera: OK';
+        }catch(e){
+          debug.textContent='Camera error: '+(e.name||'')+(e.message?(' — '+e.message):'');
+          // Tips:
+          // iPhone Safari: Settings > Safari > Camera > Allow
+          // Android Chrome: Settings > Site settings > Camera > Allow
+          return;
+        }
+
+        // MindAR setup
+        const mindarThree=new window.MINDAR.IMAGE.MindArThree?.constructor? new window.MINDAR.IMAGE.MindArThree(): null;
+        // ^ older typo guard (not used); real init below:
+        const mt = new window.MINDAR.IMAGE.MindARThree({
           container: document.querySelector('#ar-container'),
           imageTargetSrc: './assets/targets.mind',
           uiLoading:false, uiError:true, maxTrack:1
         });
-        const {renderer,scene,camera}=mindarThree;
+        const {renderer,scene,camera}=mt;
         scene.add(new THREE.HemisphereLight(0xffffff,0x222222,1.1));
 
-        const anchor=mindarThree.addAnchor(0);
+        const anchor=mt.addAnchor(0);
         const loader=new THREE.GLTFLoader();
+
         loader.load('./assets/pete.glb',(gltf)=>{
           const pete=gltf.scene;
           pete.scale.set(0.8,0.8,0.8);
@@ -120,14 +150,20 @@ function waitForLibs(maxMs=15000){
           }else{
             renderer.setAnimationLoop(()=>{ renderer.render(scene,camera); });
           }
-          anchor.onTargetFound=()=>{ try{ voice.currentTime=0; voice.play(); runCaptions(); }catch(e){} };
-        },undefined,(err)=>{ debug.textContent='GLB load error'; console.error(err); });
 
-        await mindarThree.start();
-        debug.textContent='Tracking… point at the poster.';
+          anchor.onTargetFound=()=>{ try{ voice.currentTime=0; voice.play(); runCaptions(); }catch(e){} };
+        }, undefined, (err)=>{ debug.textContent='GLB load error (check assets/pete.glb)'; console.error(err); });
+
+        try{
+          await mt.start();
+          debug.textContent='Tracking… point at the poster.';
+        }catch(e){
+          debug.textContent='MindAR start error: '+e.message;
+        }
       });
     })();
 
+    // quick status on load
     window.addEventListener('load',()=>{
       const d=document.getElementById('debug');
       const okThree=!!window.THREE;
