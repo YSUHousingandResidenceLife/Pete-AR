@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <title>Pete WebAR (MindAR)</title>
+  <title>Pete WebAR (MindAR) — Debug</title>
   <style>
     html,body{margin:0;padding:0;height:100%;background:#000;}
     #ar-container{position:fixed;inset:0;}
@@ -16,7 +16,7 @@
     #cta-wrap{position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:12px;}
     #cta-wrap a{pointer-events:auto;text-decoration:none;background:#ffffffee;color:#000;border-radius:999px;padding:12px 16px;font-weight:700;}
     #subtitle{position:fixed;bottom:76px;left:12px;right:12px;pointer-events:none;background:rgba(0,0,0,.55);color:#fff;padding:8px 12px;border-radius:12px;text-align:center;font-size:14px;}
-    #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;opacity:.85;background:rgba(0,0,0,.35);padding:6px 8px;border-radius:8px;}
+    #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;opacity:.95;background:rgba(0,0,0,.4);padding:6px 8px;border-radius:8px;white-space:pre-line;max-width:92vw;}
   </style>
 
   <!-- Libraries with fallbacks (order matters) -->
@@ -32,7 +32,7 @@
 <body>
   <div id="ar-container"></div>
 
-  <!-- Start gate (unlocks audio) -->
+  <!-- Start gate -->
   <div id="gate">
     <img src="./assets/marker.jpg" alt="Scan Marker" style="width:120px;height:auto;border-radius:8px;border:1px solid #333;opacity:.95"/>
     <div style="max-width:380px">Move your phone to detect the poster, then tap start to place Pete. Audio will play.</div>
@@ -44,7 +44,6 @@
     <div id="subtitle">Welcome home, Penguins — Pete here. Tap the link to follow @ysu_hrl.</div>
     <div id="cta-wrap">
       <a href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">Follow @ysu_hrl</a>
-      <!-- <a href="https://your-housing-apply-link" target="_blank" rel="noopener">Apply for Housing</a> -->
     </div>
     <div id="debug">Ready</div>
   </div>
@@ -52,7 +51,18 @@
   <audio id="voice" src="./assets/pete-voice.mp3" preload="auto"></audio>
 
   <script>
-    // Wait for libs so window.MINDAR.IMAGE exists
+    // ===== Debug helpers =====
+    const debugEl = document.getElementById('debug');
+    function log(msg){ debugEl.textContent = (debugEl.textContent ? debugEl.textContent + "\n" : "") + msg; }
+
+    window.onerror = function(message, source, lineno, colno, error){
+      log("JS Error: " + message);
+    };
+    window.addEventListener('unhandledrejection', (e)=>{
+      log("Promise rejection: " + (e.reason && e.reason.message ? e.reason.message : String(e.reason)));
+    });
+
+    // ===== Library wait =====
     function waitForLibs(maxMs=15000){
       const start = Date.now();
       return new Promise((resolve, reject)=>{
@@ -67,7 +77,7 @@
       });
     }
 
-    // Explicit camera permission preflight
+    // ===== Camera preflight =====
     async function requestCameraPreflight(){
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
         throw new Error('Camera API not available in this browser');
@@ -76,12 +86,12 @@
       tempStream.getTracks().forEach(t => t.stop());
     }
 
+    // ===== Main =====
     (function(){
       const startBtn=document.getElementById('startBtn');
       const gate=document.getElementById('gate');
       const hud=document.getElementById('hud');
       const subtitle=document.getElementById('subtitle');
-      const debug=document.getElementById('debug');
       const voice=document.getElementById('voice');
 
       const captions=[
@@ -97,45 +107,48 @@
         },100);
       }
 
+      // Status when page loads
+      window.addEventListener('load', ()=>{
+        const okThree=!!window.THREE;
+        const okLoader=!!(window.THREE && window.THREE.GLTFLoader);
+        const okMind=!!(window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.MindARThree);
+        debugEl.textContent = `THREE:${okThree?'OK':'X'} Loader:${okLoader?'OK':'X'} MindAR:${okMind?'OK':'X'}`;
+      });
+
       startBtn.addEventListener('click', async ()=>{
+        log("Start clicked");
         hud.style.display='block';
         gate.style.display='none';
 
-        // unlock audio
-        try{ await voice.play(); voice.pause(); voice.currentTime=0; }catch(e){}
+        try{ await voice.play(); voice.pause(); voice.currentTime=0; log("Audio unlocked"); }catch(e){ log("Audio unlock failed (OK to continue)"); }
 
-        // libs
-        try{ await waitForLibs(); debug.textContent='Libs: OK'; }
-        catch(err){ debug.textContent='Error loading libs: '+err.message; return; }
+        try{ await waitForLibs(); log("Libs: OK"); }
+        catch(err){ log("Error loading libs: "+err.message); return; }
 
-        // camera permission
         try{
-          debug.textContent='Requesting camera…';
+          log("Requesting camera…");
           await requestCameraPreflight();
-          debug.textContent='Camera: OK';
+          log("Camera: OK");
         }catch(e){
-          debug.textContent='Camera error: '+(e.name||'')+(e.message?(' — '+e.message):'');
-          // Tips:
-          // iPhone Safari: Settings > Safari > Camera > Allow
-          // Android Chrome: Settings > Site settings > Camera > Allow
+          log("Camera error: "+(e.name||'')+(e.message?(' — '+e.message):''));
+          log("Tips: iPhone Safari → Settings > Safari > Camera > Allow. Android Chrome → Settings > Site settings > Camera > Allow.");
           return;
         }
 
-        // MindAR setup
-        const mindarThree=new window.MINDAR.IMAGE.MindArThree?.constructor? new window.MINDAR.IMAGE.MindArThree(): null;
-        // ^ older typo guard (not used); real init below:
-        const mt = new window.MINDAR.IMAGE.MindARThree({
+        // MindAR init
+        log("Starting MindAR…");
+        const mindarThree=new window.MINDAR.IMAGE.MindARThree({
           container: document.querySelector('#ar-container'),
           imageTargetSrc: './assets/targets.mind',
           uiLoading:false, uiError:true, maxTrack:1
         });
-        const {renderer,scene,camera}=mt;
+        const {renderer,scene,camera}=mindarThree;
         scene.add(new THREE.HemisphereLight(0xffffff,0x222222,1.1));
 
-        const anchor=mt.addAnchor(0);
+        const anchor=mindarThree.addAnchor(0);
         const loader=new THREE.GLTFLoader();
-
         loader.load('./assets/pete.glb',(gltf)=>{
+          log("GLB loaded");
           const pete=gltf.scene;
           pete.scale.set(0.8,0.8,0.8);
           pete.position.set(0,-0.1,0);
@@ -147,30 +160,21 @@
             const action=mixer.clipAction(gltf.animations[0]); action.play();
             const clock=new THREE.Clock();
             renderer.setAnimationLoop(()=>{ mixer.update(clock.getDelta()); renderer.render(scene,camera); });
-          }else{
+          } else {
             renderer.setAnimationLoop(()=>{ renderer.render(scene,camera); });
           }
 
-          anchor.onTargetFound=()=>{ try{ voice.currentTime=0; voice.play(); runCaptions(); }catch(e){} };
-        }, undefined, (err)=>{ debug.textContent='GLB load error (check assets/pete.glb)'; console.error(err); });
+          anchor.onTargetFound=()=>{ try{ voice.currentTime=0; voice.play(); runCaptions(); log("Marker found → speaking"); }catch(e){} };
+        }, undefined, (err)=>{ log('GLB load error (check assets/pete.glb)'); });
 
         try{
-          await mt.start();
-          debug.textContent='Tracking… point at the poster.';
+          await mindarThree.start();
+          log('Tracking… point at the poster.');
         }catch(e){
-          debug.textContent='MindAR start error: '+e.message;
+          log('MindAR start error: '+e.message);
         }
       });
     })();
-
-    // quick status on load
-    window.addEventListener('load',()=>{
-      const d=document.getElementById('debug');
-      const okThree=!!window.THREE;
-      const okLoader=!!(window.THREE && window.THREE.GLTFLoader);
-      const okMind=!!(window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.MindARThree);
-      d.textContent=`THREE:${okThree?'OK':'X'} Loader:${okLoader?'OK':'X'} MindAR:${okMind?'OK':'X'}`;
-    });
   </script>
 </body>
 </html>
