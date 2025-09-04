@@ -1,6 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+<!-- Load libs with fallbacks (Three.js, GLTFLoader, MindAR) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js" crossorigin="anonymous"
+        onerror="this.onerror=null;this.src='https://unpkg.com/three@0.152.2/build/three.min.js'"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js" crossorigin="anonymous"
+        onerror="this.onerror=null;this.src='https://unpkg.com/three@0.152.2/examples/js/loaders/GLTFLoader.js'"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js" crossorigin="anonymous"
+        onerror="this.onerror=null;this.src='https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js'"></script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
   <title>Pete WebAR (MindAR)</title>
@@ -47,17 +53,19 @@
   <audio id="voice" src="./assets/pete-voice.mp3" preload="auto"></audio>
 
   <script>
-    function waitForLibs(maxMs=8000){
-      const t0=Date.now();
-      return new Promise((res,rej)=>{
-        (function poll(){
-          const ok=!!(window.THREE && window.THREE.GLTFLoader && window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.MindARThree);
-          if(ok) return res();
-          if(Date.now()-t0>maxMs) return rej(new Error('MindAR/THREE libs failed to load'));
-          setTimeout(poll,80);
-        })();
-      });
-    }
+function waitForLibs(maxMs=15000){
+  const start = Date.now();
+  return new Promise((resolve, reject)=>{
+    (function poll(){
+      const ok = !!(window.THREE && window.THREE.GLTFLoader &&
+                    window.MINDAR && window.MINDAR.IMAGE &&
+                    window.MINDAR.IMAGE.MindARThree);
+      if (ok) return resolve();
+      if (Date.now()-start > maxMs) return reject(new Error('MindAR/THREE libs failed to load'));
+      setTimeout(poll, 80);
+    })();
+  });
+}
 
     (function(){
       const startBtn=document.getElementById('startBtn');
