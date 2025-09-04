@@ -19,10 +19,10 @@
     #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;opacity:.95;background:rgba(0,0,0,.4);padding:6px 8px;border-radius:8px;white-space:pre-line;max-width:92vw;}
   </style>
 
-  <!-- Libraries from unpkg (order matters) -->
-  <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
-  <script src="https://unpkg.com/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
-  <script src="https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+  <!-- Load libs locally using your exact filenames -->
+  <script src="./libs/three.min.js"></script>
+  <script src="./libs/gltfloader.js"></script>
+  <script src="./libs/mindar-image-three.prod.js"></script>
 </head>
 <body>
   <div id="ar-container"></div>
@@ -49,7 +49,7 @@
     // ===== Debug helpers =====
     const debugEl = document.getElementById('debug');
     function log(msg){ debugEl.textContent = (debugEl.textContent ? debugEl.textContent + "\n" : "") + msg; }
-    window.onerror = (m,src,line,col,err)=>{ log("JS Error: " + m); };
+    window.onerror = (m)=>{ log("JS Error: " + m); };
     window.addEventListener('unhandledrejection', e=>{ log("Promise rejection: " + (e.reason?.message || String(e.reason))); });
 
     // ===== Library wait =====
