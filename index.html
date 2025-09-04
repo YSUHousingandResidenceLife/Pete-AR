@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Pete WebAR (MindAR)</title>
+  <style>
+    html,body{margin:0;padding:0;height:100%;background:#000;}
+    #ar-container{position:fixed;inset:0;}
+    #gate,#hud{position:fixed;left:0;top:0;right:0;z-index:10;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+    #gate{bottom:0;display:flex;flex-direction:column;justify-content:center;align-items:center;background:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.85));color:#fff;padding:24px;gap:16px;text-align:center;}
+    .btn{appearance:none;border:0;border-radius:999px;padding:14px 18px;font-weight:700;letter-spacing:.2px;}
+    .btn-primary{background:#cc0000;color:#fff;}
+    .btn-primary:active{transform:scale(.98);}
+    #hud{pointer-events:none;}
+    #cta-wrap{position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:12px;}
+    #cta-wrap a{pointer-events:auto;text-decoration:none;background:#ffffffee;color:#000;border-radius:999px;padding:12px 16px;font-weight:700;}
+    #subtitle{position:fixed;bottom:76px;left:12px;right:12px;pointer-events:none;background:rgba(0,0,0,.55);color:#fff;padding:8px 12px;border-radius:12px;text-align:center;font-size:14px;}
+    #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;opacity:.75;background:rgba(0,0,0,.35);padding:6px 8px;border-radius:8px;}
+  </style>
+
+  <!-- Load libs in correct order -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+</head>
+<body>
+  <div id="ar-container"></div>
+
+  <!-- Start gate (unlocks audio) -->
+  <div id="gate">
+    <img src="./assets/marker.jpg" alt="Scan Marker" style="width:120px;height:auto;border-radius:8px;border:1px solid #333;opacity:.95"/>
+    <div style="max-width:380px">Move your phone to detect the poster, then tap start to place Pete. Audio will play.</div>
+    <button id="startBtn" class="btn btn-primary">Start AR</button>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" style="display:none">
+    <div id="subtitle">Welcome home, Penguins — Pete here. Tap the link to follow @ysu_hrl.</div>
+    <div id="cta-wrap">
+      <a href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">Follow @ysu_hrl</a>
+      <!-- <a href="https://your-housing-apply-link" target="_blank" rel="noopener">Apply for Housing</a> -->
+    </div>
+    <div id="debug">Ready</div>
+  </div>
+
+  <audio id="voice" src="./assets/pete-voice.mp3" preload="auto"></audio>
+
+  <script>
+    function waitForLibs(maxMs=8000){
+      const t0=Date.now();
+      return new Promise((res,rej)=>{
+        (function poll(){
+          const ok=!!(window.THREE && window.THREE.GLTFLoader && window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.MindARThree);
+          if(ok) return res();
+          if(Date.now()-t0>maxMs) return rej(new Error('MindAR/THREE libs failed to load'));
+          setTimeout(poll,80);
+        })();
+      });
+    }
+
+    (function(){
+      const startBtn=document.getElementById('startBtn');
+      const gate=document.getElementById('gate');
+      const hud=document.getElementById('hud');
+      const subtitle=document.getElementById('subtitle');
+      const debug=document.getElementById('debug');
+      const voice=document.getElementById('voice');
+
+      const captions=[
+        {t:0.1,text:"Welcome home, Penguins — Pete here."},
+        {t:3.4,text:"Tap the link to follow @ysu_hrl."},
+        {t:6.2,text:"Get event drops, RA shout-outs, and housing updates."}
+      ];
+      function runCaptions(){
+        let i=0; const timer=setInterval(()=>{
+          const t=voice.currentTime;
+          if(i<captions.length && t>=captions[i].t){ subtitle.textContent=captions[i].text; i++; }
+          if(voice.ended || t>=(voice.duration||9.5)) clearInterval(timer);
+        },100);
+      }
+
+      startBtn.addEventListener('click', async ()=>{
+        hud.style.display='block';
+        gate.style.display='none';
+        try{ await voice.play(); voice.pause(); voice.currentTime=0; }catch(e){}
+        try{ await waitForLibs(); }catch(err){ debug.textContent='Error: '+err.message; return; }
+        debug.textContent='Libs: OK';
+
+        const mindarThree=new window.MINDAR.IMAGE.MindARThree({
+          container: document.querySelector('#ar-container'),
+          imageTargetSrc: './assets/targets.mind',
+          uiLoading:false, uiError:true, maxTrack:1
+        });
+        const {renderer,scene,camera}=mindarThree;
+        scene.add(new THREE.HemisphereLight(0xffffff,0x222222,1.1));
+
+        const anchor=mindarThree.addAnchor(0);
+        const loader=new THREE.GLTFLoader();
+        loader.load('./assets/pete.glb',(gltf)=>{
+          const pete=gltf.scene;
+          pete.scale.set(0.8,0.8,0.8);
+          pete.position.set(0,-0.1,0);
+          pete.rotation.set(0,Math.PI,0);
+          anchor.group.add(pete);
+
+          if(gltf.animations && gltf.animations.length){
+            const mixer=new THREE.AnimationMixer(pete);
+            const action=mixer.clipAction(gltf.animations[0]); action.play();
+            const clock=new THREE.Clock();
+            renderer.setAnimationLoop(()=>{ mixer.update(clock.getDelta()); renderer.render(scene,camera); });
+          }else{
+            renderer.setAnimationLoop(()=>{ renderer.render(scene,camera); });
+          }
+          anchor.onTargetFound=()=>{ try{ voice.currentTime=0; voice.play(); runCaptions(); }catch(e){} };
+        },undefined,(err)=>{ debug.textContent='GLB load error'; console.error(err); });
+
+        await mindarThree.start();
+        debug.textContent='Tracking… point at the poster.';
+      });
+    })();
+
+    window.addEventListener('load',()=>{
+      const d=document.getElementById('debug');
+      const okThree=!!window.THREE;
+      const okLoader=!!(window.THREE && window.THREE.GLTFLoader);
+      const okMind=!!(window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.MindARThree);
+      d.textContent=`THREE:${okThree?'OK':'X'} Loader:${okLoader?'OK':'X'} MindAR:${okMind?'OK':'X'}`;
+    });
+  </script>
+</body>
+</html>
