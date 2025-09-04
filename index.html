@@ -19,15 +19,10 @@
     #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;opacity:.95;background:rgba(0,0,0,.4);padding:6px 8px;border-radius:8px;white-space:pre-line;max-width:92vw;}
   </style>
 
-  <!-- Libraries with fallbacks (order matters) -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js" crossorigin="anonymous"
-          onerror="this.onerror=null;this.src='https://unpkg.com/three@0.152.2/build/three.min.js'"></script>
-
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js" crossorigin="anonymous"
-          onerror="this.onerror=null;this.src='https://unpkg.com/three@0.152.2/examples/js/loaders/GLTFLoader.js'"></script>
-
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js" crossorigin="anonymous"
-          onerror="this.onerror=null;this.src='https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js'"></script>
+  <!-- Libraries from unpkg (order matters) -->
+  <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
 </head>
 <body>
   <div id="ar-container"></div>
@@ -54,13 +49,8 @@
     // ===== Debug helpers =====
     const debugEl = document.getElementById('debug');
     function log(msg){ debugEl.textContent = (debugEl.textContent ? debugEl.textContent + "\n" : "") + msg; }
-
-    window.onerror = function(message, source, lineno, colno, error){
-      log("JS Error: " + message);
-    };
-    window.addEventListener('unhandledrejection', (e)=>{
-      log("Promise rejection: " + (e.reason && e.reason.message ? e.reason.message : String(e.reason)));
-    });
+    window.onerror = (m,src,line,col,err)=>{ log("JS Error: " + m); };
+    window.addEventListener('unhandledrejection', e=>{ log("Promise rejection: " + (e.reason?.message || String(e.reason))); });
 
     // ===== Library wait =====
     function waitForLibs(maxMs=15000){
@@ -79,7 +69,7 @@
 
     // ===== Camera preflight =====
     async function requestCameraPreflight(){
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera API not available in this browser');
       }
       const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
@@ -107,7 +97,6 @@
         },100);
       }
 
-      // Status when page loads
       window.addEventListener('load', ()=>{
         const okThree=!!window.THREE;
         const okLoader=!!(window.THREE && window.THREE.GLTFLoader);
@@ -135,7 +124,6 @@
           return;
         }
 
-        // MindAR init
         log("Starting MindAR…");
         const mindarThree=new window.MINDAR.IMAGE.MindARThree({
           container: document.querySelector('#ar-container'),
