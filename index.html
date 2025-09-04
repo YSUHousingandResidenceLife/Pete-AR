@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <title>Pete WebAR (MindAR) — Debug</title>
+  <title>Pete WebAR (MindAR) — Loader Debug</title>
   <style>
     html,body{margin:0;padding:0;height:100%;background:#000;}
     #ar-container{position:fixed;inset:0;}
@@ -18,11 +18,6 @@
     #subtitle{position:fixed;bottom:76px;left:12px;right:12px;pointer-events:none;background:rgba(0,0,0,.55);color:#fff;padding:8px 12px;border-radius:12px;text-align:center;font-size:14px;}
     #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;opacity:.95;background:rgba(0,0,0,.4);padding:6px 8px;border-radius:8px;white-space:pre-line;max-width:92vw;}
   </style>
-
-  <!-- Load libs locally using your exact filenames -->
-  <script src="./libs/three.min.js"></script>
-  <script src="./libs/gltfloader.js"></script>
-  <script src="./libs/mindar-image-three.prod.js"></script>
 </head>
 <body>
   <div id="ar-container"></div>
@@ -49,22 +44,32 @@
     // ===== Debug helpers =====
     const debugEl = document.getElementById('debug');
     function log(msg){ debugEl.textContent = (debugEl.textContent ? debugEl.textContent + "\n" : "") + msg; }
-    window.onerror = (m)=>{ log("JS Error: " + m); };
+    window.onerror = (m,src,l,c,e)=>{ log("JS Error: " + m + (src?(" @ "+src):"")); };
     window.addEventListener('unhandledrejection', e=>{ log("Promise rejection: " + (e.reason?.message || String(e.reason))); });
 
-    // ===== Library wait =====
-    function waitForLibs(maxMs=15000){
-      const start = Date.now();
+    // ===== Dynamic script loader (with precise error output) =====
+    function loadScript(src){
       return new Promise((resolve, reject)=>{
-        (function poll(){
-          const ok = !!(window.THREE && window.THREE.GLTFLoader &&
-                        window.MINDAR && window.MINDAR.IMAGE &&
-                        window.MINDAR.IMAGE.MindARThree);
-          if (ok) return resolve();
-          if (Date.now()-start > maxMs) return reject(new Error('MindAR/THREE libs failed to load'));
-          setTimeout(poll, 80);
-        })();
+        const s = document.createElement('script');
+        s.src = src;
+        s.async = false;
+        s.onload = ()=>{ log("Loaded: " + src); resolve(); };
+        s.onerror = ()=>{ log("FAILED to load: " + src); reject(new Error("Failed: "+src)); };
+        document.head.appendChild(s);
       });
+    }
+
+    async function loadLibs(){
+      // Use YOUR local paths (exact filenames you have)
+      await loadScript("./libs/three.min.js");
+      await loadScript("./libs/gltfloader.js"); // lower-case as in your repo
+      await loadScript("./libs/mindar-image-three.prod.js");
+      // Sanity check
+      const okThree = !!window.THREE;
+      const okLoader = !!(window.THREE && window.THREE.GLTFLoader);
+      const okMind = !!(window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.MindARThree);
+      log(`Status → THREE:${okThree?'OK':'X'}  Loader:${okLoader?'OK':'X'}  MindAR:${okMind?'OK':'X'}`);
+      if (!okThree || !okLoader || !okMind) throw new Error("One or more libs not available after load");
     }
 
     // ===== Camera preflight =====
@@ -97,13 +102,6 @@
         },100);
       }
 
-      window.addEventListener('load', ()=>{
-        const okThree=!!window.THREE;
-        const okLoader=!!(window.THREE && window.THREE.GLTFLoader);
-        const okMind=!!(window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.MindARThree);
-        debugEl.textContent = `THREE:${okThree?'OK':'X'} Loader:${okLoader?'OK':'X'} MindAR:${okMind?'OK':'X'}`;
-      });
-
       startBtn.addEventListener('click', async ()=>{
         log("Start clicked");
         hud.style.display='block';
@@ -111,16 +109,23 @@
 
         try{ await voice.play(); voice.pause(); voice.currentTime=0; log("Audio unlocked"); }catch(e){ log("Audio unlock failed (OK to continue)"); }
 
-        try{ await waitForLibs(); log("Libs: OK"); }
-        catch(err){ log("Error loading libs: "+err.message); return; }
+        try{
+          log("Loading libs…");
+          await loadLibs();
+          log("Libs: OK");
+        }catch(err){
+          log("Lib load error: " + err.message);
+          log("→ Open each URL directly to verify:\n  /libs/three.min.js\n  /libs/gltfloader.js\n  /libs/mindar-image-three.prod.js");
+          return;
+        }
 
         try{
           log("Requesting camera…");
           await requestCameraPreflight();
           log("Camera: OK");
         }catch(e){
-          log("Camera error: "+(e.name||'')+(e.message?(' — '+e.message):''));
-          log("Tips: iPhone Safari → Settings > Safari > Camera > Allow. Android Chrome → Settings > Site settings > Camera > Allow.");
+          log("Camera error: "+(e.name||'')+(e.message?(' — '+e.message):'')); 
+          log("Tips: iPhone Safari → Settings > Safari > Camera → Allow. Android Chrome → Settings > Site settings → Camera → Allow.");
           return;
         }
 
