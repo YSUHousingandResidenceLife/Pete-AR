@@ -3,21 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <title>Pete WebAR — Rear Cam, Voice Only</title>
+  <title>Pete WebAR — Rear Cam, Visible Preview, Flip</title>
   <style>
     html,body{margin:0;padding:0;height:100%;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
-    #gate,#hud{position:fixed;left:0;right:0;z-index:10}
+    /* MindAR injects a <video>. Make sure it's visible and behind 3D */
+    video.mindar-video { position:fixed; inset:0; object-fit:cover; z-index:0 !important; background:#000; }
+    canvas.a-canvas   { position:fixed !important; inset:0 !important; z-index:1 !important; }
+    #gate,#hud{position:fixed;left:0;right:0;z-index:2}
     #gate{top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
           background:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.85));color:#fff;gap:16px;padding:24px;text-align:center}
     .btn{appearance:none;border:0;border-radius:999px;padding:14px 18px;font-weight:700;letter-spacing:.2px;background:#cc0000;color:#fff}
     #hud{pointer-events:none}
     #hud .row{display:flex;gap:12px;justify-content:center;align-items:center}
     #cta{position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:12px}
-    #cta a,#cta button{pointer-events:auto;text-decoration:none;background:#ffffffee;color:#000;border-radius:999px;padding:10px 14px;font-weight:700;border:none}
-    #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;background:rgba(0,0,0,.4);padding:6px 8px;border-radius:8px;white-space:pre-line}
+    #cta a,#cta button{pointer-events:auto;text-decoration:none;background:#ffffffee;color:#000;border-radius:999px;padding:10px 14px;
+                       font-weight:700;border:none}
+    #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;background:rgba(0,0,0,.55);padding:6px 8px;border-radius:8px;white-space:pre-line}
   </style>
 
-  <!-- Local libs already in your repo -->
+  <!-- Local libs (you already have these in /libs) -->
   <script src="./libs/aframe.min.js"></script>
   <script src="./libs/mindar-image-aframe.prod.js"></script>
 </head>
@@ -25,93 +29,105 @@
   <!-- Start gate -->
   <div id="gate">
     <img src="./assets/marker.jpg" alt="Scan Marker" style="width:120px;height:auto;border-radius:8px;border:1px solid #333;opacity:.95"/>
-    <div style="max-width:380px">Point your phone at the poster, then tap Start. Audio will play.</div>
+    <div style="max-width:380px">Point your phone at the poster, then tap Start. You should see the camera preview; audio will play when Pete appears.</div>
     <button id="startBtn" class="btn" disabled>Loading…</button>
   </div>
 
   <!-- HUD -->
   <div id="hud" style="display:none">
-    <div class="row">
-      <div id="debug">Ready</div>
-    </div>
+    <div class="row"><div id="debug">Ready</div></div>
     <div id="cta" class="row">
       <a href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">Follow @ysu_hrl</a>
       <button id="flipBtn" type="button" title="Flip between rear/front camera">Flip Camera</button>
     </div>
   </div>
 
-  <!-- Audio -->
+  <!-- Pete audio -->
   <audio id="voice" src="./assets/pete-voice.mp3" preload="auto"></audio>
 
-  <!-- A-Frame + MindAR scene (force rear camera with JSON) -->
+  <!-- A-Frame + MindAR scene -->
   <a-scene
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
     renderer="colorManagement: true, physicallyCorrectLights: true"
     embedded
-    mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 1; videoSettings: { &quot;facingMode&quot;: &quot;environment&quot; }"
+    mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 1; uiLoading: true; uiError: true; uiScanning: true;
+                   videoSettings: { &quot;facingMode&quot;: &quot;environment&quot; }"
     id="scene">
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
     <a-entity mindar-image-target="targetIndex: 0">
-      <!-- Larger + slightly lifted for visibility; double-sided in case normals are flipped -->
+      <!-- Visible Pete: larger, slightly lifted, double-sided -->
       <a-gltf-model id="pete"
         src="./assets/pete.glb"
-        position="0 0.05 0"
+        position="0 0.06 0"
         rotation="0 180 0"
-        scale="2 2 2"
+        scale="2.2 2.2 2.2"
         material="side: double">
       </a-gltf-model>
 
-      <a-entity light="type: hemisphere; intensity: 1.1; groundColor: #222"></a-entity>
+      <a-entity light="type: hemisphere; intensity: 1.15; groundColor: #222"></a-entity>
     </a-entity>
   </a-scene>
 
   <script>
-    const gate   = document.getElementById('gate');
-    const hud    = document.getElementById('hud');
-    const debugEl= document.getElementById('debug');
-    const voice  = document.getElementById('voice');
-    const scene  = document.getElementById('scene');
-    const start  = document.getElementById('startBtn');
-    const flip   = document.getElementById('flipBtn');
+    const gate    = document.getElementById('gate');
+    const hud     = document.getElementById('hud');
+    const debugEl = document.getElementById('debug');
+    const voice   = document.getElementById('voice');
+    const scene   = document.getElementById('scene');
+    const start   = document.getElementById('startBtn');
+    const flip    = document.getElementById('flipBtn');
 
     function log(m){ debugEl.textContent = m; }
 
-    // Enable Start only when scene is ready
+    // Enable Start when A-Frame scene fully booted
     scene.addEventListener('loaded', ()=>{
       start.textContent = 'Start';
       start.disabled = false;
     });
 
-    // Play voice when poster found
+    // Play voice when marker found
     scene.addEventListener('targetFound', ()=>{
       try{ voice.currentTime=0; voice.play(); }catch(_){}
       log('Marker found → speaking');
     });
-    scene.addEventListener('targetLost',  ()=>{ log('Marker lost'); });
+    scene.addEventListener('targetLost', ()=>{ log('Marker lost'); });
 
-    // Camera preflight (prefer rear)
+    // Helpers
+    function getMindVideo(){
+      // MindAR attaches a <video> to document with class 'mindar-video'
+      return document.querySelector('video.mindar-video');
+    }
     async function preflightCamera(prefer = 'environment'){
       if (!navigator.mediaDevices?.getUserMedia) return;
       try {
         const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: prefer } } });
         s.getTracks().forEach(t=>t.stop());
       } catch (_e) {
-        try {
-          const s2 = await navigator.mediaDevices.getUserMedia({ video: true });
-          s2.getTracks().forEach(t=>t.stop());
-        } catch (e2) { throw e2; }
+        // fallback
+        const s2 = await navigator.mediaDevices.getUserMedia({ video: true });
+        s2.getTracks().forEach(t=>t.stop());
       }
     }
+    async function startAR(){
+      await scene.systems["mindar-image-system"].start();
+      // Diagnostics: confirm the camera video is playing
+      const v = getMindVideo();
+      if (v){
+        const rs = v.readyState; // 0-4
+        log(`Tracking… point at the poster.\nVideo readyState=${rs} ${rs>=2?'(OK)':'(loading)'}`);
+      } else {
+        log('Tracking… (video element not found yet)');
+      }
+    }
+    async function stopAR(){
+      try { await scene.systems["mindar-image-system"].stop(); } catch(_){}
+    }
 
-    // Start/Stop AR helpers
-    async function startAR(){ await scene.systems["mindar-image-system"].start(); log('Tracking… point at the poster.'); }
-    async function stopAR(){ try{ await scene.systems["mindar-image-system"].stop(); }catch(_){} }
-
-    // Flip camera handler
     async function flipCamera(){
+      // Toggle facing mode in component, then fully restart AR
       const comp = scene.getAttribute('mindar-image');
       let vs;
       try { vs = (typeof comp.videoSettings === 'string') ? JSON.parse(comp.videoSettings) : comp.videoSettings; } catch { vs = {}; }
@@ -119,8 +135,7 @@
       const next = current === 'environment' ? 'user' : 'environment';
       const nextJSON = JSON.stringify({ facingMode: next });
 
-      scene.setAttribute('mindar-image', `imageTargetSrc: ./assets/targets.mind; maxTrack: 1; videoSettings: ${nextJSON}`);
-
+      scene.setAttribute('mindar-image', `imageTargetSrc: ./assets/targets.mind; maxTrack: 1; uiLoading: true; uiError: true; uiScanning: true; videoSettings: ${nextJSON}`);
       try {
         log(`Switching camera → ${next}…`);
         await stopAR();
@@ -131,12 +146,12 @@
       }
     }
 
-    // UI wiring
+    // Start flow
     start.addEventListener('click', async ()=>{
       hud.style.display = 'block';
       gate.style.display = 'none';
 
-      // unlock audio (mobile)
+      // unlock audio
       try { await voice.play(); voice.pause(); voice.currentTime = 0; } catch(_){}
 
       // preflight rear
@@ -148,6 +163,13 @@
 
       // start AR
       try { await startAR(); } catch(e){ log('Failed to start AR: ' + (e.message || e)); }
+
+      // After start, verify the injected video is visible and playing
+      setTimeout(()=>{
+        const v = getMindVideo();
+        if (!v) { log(debugEl.textContent + "\n(No video element yet — if preview is black, try Flip once.)"); return; }
+        if (v.readyState < 2) { log(debugEl.textContent + "\n(Video not ready yet — give it a second or Flip once.)"); }
+      }, 700);
     });
 
     flip.addEventListener('click', flipCamera);
