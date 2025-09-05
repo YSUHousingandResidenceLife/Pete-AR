@@ -3,50 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pete — Android AR</title>
-  <style>
-    :root { --ysu:#cc0000; }
-    html,body { margin:0; height:100%; background:#000; color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
-    .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; }
-    .card { width:min(700px,94vw); background:#101010; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.4); padding:28px; }
-    h1 { margin:0 0 8px; font-size:22px; }
-    p  { margin:0 0 18px; opacity:.9; }
-    .btns { display:flex; flex-direction:column; gap:12px; margin-top:10px; }
-    a.btn { display:block; text-align:center; text-decoration:none; font-weight:800; padding:14px 16px; border-radius:999px; }
-    a.primary { background:var(--ysu); color:#fff; }
-    a.light { background:#fff; color:#000; }
-    .note { margin-top:14px; font-size:12px; opacity:.7; line-height:1.4; }
-  </style>
+  <title>Pete AR Test</title>
 </head>
-<body>
-  <div class="wrap">
-    <div class="card">
-      <h1>See Pete in your space (Android)</h1>
-      <p>Tap the button below. It opens your phone’s native AR viewer.</p>
+<body style="background:#000; color:#fff; font-family:sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; text-align:center;">
+  <div>
+    <h1>Test: Pete AR</h1>
+    <p>If the GLB is uploaded correctly, this button should open AR on Android:</p>
 
-      <div class="btns">
-        <!-- ANDROID AR (Scene Viewer). Uses your hosted GLB (URL-encoded) -->
-        <a class="btn primary"
-           href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fkalyciakington-YSUHRL.github.io%2FPerte-AR%2Fassets%2Fpete.glb&title=Pete&mode=ar_preferred"
-           rel="noopener">
-          Open AR on Android
-        </a>
-
-        <!-- Optional: 3D preview in-page (no AR), handy for desktop/iOS users -->
-        <a class="btn light" href="https://kalyciakington-YSUHRL.github.io/Perte-AR/assets/pete.glb">
-          Download Pete (GLB)
-        </a>
-
-        <!-- Your CTA -->
-        <a class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
-          Follow @ysu_hrl
-        </a>
-      </div>
-
-      <div class="note">
-        If AR shows “couldn’t load object,” re-export Pete as <b>GLB (embedded textures, no KTX2)</b> and re-upload to <code>assets/pete.glb</code>.
-      </div>
-    </div>
+    <a href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fkalyciakington-YSUHRL.github.io%2FPerte-AR%2Fassets%2Fpete.glb&title=Pete&mode=ar_preferred"
+       rel="noopener"
+       style="display:inline-block; background:#cc0000; color:#fff; padding:14px 18px; border-radius:999px; font-weight:700; text-decoration:none;">
+      Open Pete in AR
+    </a>
   </div>
 </body>
 </html>
