@@ -3,50 +3,48 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pete — See in your space</title>
-  <!-- Model-Viewer (Google) -->
-  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <title>Pete — Quick AR + Follow</title>
   <style>
-    html,body { margin:0; height:100%; background:#000; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
-    header { position:fixed; left:0; right:0; top:0; z-index:10; padding:10px 12px; display:flex; gap:12px; align-items:center; justify-content:center; }
-    header a, header button {
-      background:#ffffffee; color:#000; border:0; border-radius:999px; padding:10px 14px; font-weight:700; text-decoration:none;
+    :root { --ysu:#cc0000; }
+    html,body { margin:0; height:100%; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; background:#000; color:#fff; }
+    .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; }
+    .card { width:min(680px,92vw); background:#111; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.35); padding:28px; }
+    h1 { margin:0 0 8px; font-size:22px; }
+    p  { margin:0 0 18px; opacity:.9; }
+    .btns { display:flex; flex-direction:column; gap:12px; margin-top:10px; }
+    a.btn {
+      display:block; text-align:center; text-decoration:none; font-weight:800;
+      padding:14px 16px; border-radius:999px; background:#fff; color:#000;
     }
-    model-viewer { width:100%; height:100%; }
-    .hint { position:fixed; left:0; right:0; bottom:12px; z-index:10; color:#fff; text-align:center; opacity:.8; font-size:14px; }
+    a.btn.primary { background:var(--ysu); color:#fff; }
+    .note { margin-top:14px; font-size:12px; opacity:.7; line-height:1.4; }
   </style>
 </head>
 <body>
-  <header>
-    <a href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">Follow @ysu_hrl</a>
-    <!-- Optional: add your housing apply link -->
-    <!-- <a href="https://your-housing-apply-link" target="_blank" rel="noopener">Apply for Housing</a> -->
-  </header>
+  <div class="wrap">
+    <div class="card">
+      <h1>See Pete in your space</h1>
+      <p>Tap a button below. No app download needed.</p>
 
-  <!--
-    What this does:
-    - Shows Pete in 3D.
-    - "View in your space" AR button:
-      * Android → Scene Viewer (markerless).
-      * iOS → Quick Look (needs a .usdz if you have one; if not, it still shows 3D and AR may fallback).
-    - No MindAR / no camera permission hurdles.
-  -->
-  <model-viewer
-    src="./assets/pete.glb"
-    alt="Pete the Penguin"
-    ar
-    ar-modes="scene-viewer quick-look webxr"
-    camera-controls
-    autoplay
-    exposure="1"
-    shadow-intensity="1"
-    environment-image="neutral"
-    ios-src="./assets/pete.usdz">
-    <button slot="ar-button" style="background:#cc0000;color:#fff;border:0;border-radius:999px;padding:12px 18px;margin:12px;font-weight:800;">
-      See Pete in your space
-    </button>
-  </model-viewer>
+      <div class="btns">
+        <!-- ANDROID AR (Scene Viewer) -->
+        <a class="btn primary"
+           href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fkalyciakington-YSUHRL.github.io%2FPerte-AR%2Fassets%2Fpete.glb&title=Pete&mode=ar_preferred"
+           rel="noopener">
+          See Pete in your space (Android)
+        </a>
 
-  <div class="hint">Tip: move your phone to detect surfaces, then place Pete.</div>
+        <!-- iOS fallback: opens Instagram now; add USDZ later for native AR Quick Look -->
+        <a class="btn" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
+          Follow @ysu_hrl
+        </a>
+      </div>
+
+      <div class="note">
+        Tip: On Android, the AR viewer opens with your camera so you can place Pete.
+        On iPhone, native AR needs a <code>.usdz</code> file. If you want that later, I can add it—today’s link still lets iPhone users hit Follow.
+      </div>
+    </div>
+  </div>
 </body>
 </html>
