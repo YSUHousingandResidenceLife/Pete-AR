@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <title>Pete WebAR (MindAR A-Frame, Stable)</title>
+  <title>Pete WebAR — Rear Camera</title>
   <style>
     html,body{margin:0;padding:0;height:100%;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
     #gate,#hud{position:fixed;left:0;right:0;z-index:10}
@@ -11,39 +11,41 @@
           background:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.85));color:#fff;gap:16px;padding:24px;text-align:center}
     .btn{appearance:none;border:0;border-radius:999px;padding:14px 18px;font-weight:700;letter-spacing:.2px;background:#cc0000;color:#fff}
     #hud{pointer-events:none}
-    #cta{position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:center}
+    #cta{position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:12px}
     #cta a{pointer-events:auto;text-decoration:none;background:#ffffffee;color:#000;border-radius:999px;padding:12px 16px;font-weight:700}
     #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;background:rgba(0,0,0,.4);padding:6px 8px;border-radius:8px;white-space:pre-line}
   </style>
 
-  <!-- Use your local libs (A-Frame 1.4.1 content in aframe.min.js; MindAR 1.2.5 A-Frame build) -->
+  <!-- Local libs (already in your repo) -->
   <script src="./libs/aframe.min.js"></script>
   <script src="./libs/mindar-image-aframe.prod.js"></script>
 </head>
 <body>
-  <!-- Start gate (unlocks audio on mobile) -->
+  <!-- Start gate -->
   <div id="gate">
     <img src="./assets/marker.jpg" alt="Scan Marker" style="width:120px;height:auto;border-radius:8px;border:1px solid #333;opacity:.95"/>
-    <div style="max-width:380px">Move your phone to detect the poster, then tap Start to see Pete. Audio will play.</div>
+    <div style="max-width:380px">Point your phone at the poster, then tap Start. Audio will play.</div>
     <button id="startBtn" class="btn" disabled>Loading…</button>
   </div>
 
   <!-- HUD -->
   <div id="hud" style="display:none">
     <div id="debug">Ready</div>
-    <div id="cta"><a href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">Follow @ysu_hrl</a></div>
+    <div id="cta">
+      <a href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">Follow @ysu_hrl</a>
+    </div>
   </div>
 
-  <!-- Pete audio -->
+  <!-- Audio -->
   <audio id="voice" src="./assets/pete-voice.mp3" preload="auto"></audio>
 
-  <!-- A-Frame / MindAR scene -->
+  <!-- A-Frame + MindAR scene (FORCE REAR CAMERA) -->
   <a-scene
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
     renderer="colorManagement: true, physicallyCorrectLights: true"
     embedded
-    mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 1;"
+    mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 1; videoSettings: { facingMode: 'environment' }"
     id="scene">
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -53,7 +55,8 @@
         src="./assets/pete.glb"
         position="0 -0.1 0"
         rotation="0 180 0"
-        scale="0.8 0.8 0.8">
+        scale="1.5 1.5 1.5"
+        material="side: double">
       </a-gltf-model>
 
       <a-entity light="type: hemisphere; intensity: 1.1; groundColor: #222"></a-entity>
@@ -61,68 +64,66 @@
   </a-scene>
 
   <script>
-    const gate = document.getElementById('gate');
-    const hud  = document.getElementById('hud');
-    const debugEl = document.getElementById('debug');
-    const voice = document.getElementById('voice');
-    const scene = document.getElementById('scene');
-    const startBtn = document.getElementById('startBtn');
+    const gate   = document.getElementById('gate');
+    const hud    = document.getElementById('hud');
+    const debugEl= document.getElementById('debug');
+    const voice  = document.getElementById('voice');
+    const scene  = document.getElementById('scene');
+    const start  = document.getElementById('startBtn');
 
-    function log(msg){ debugEl.textContent = msg; }
+    function log(m){ debugEl.textContent = m; }
 
-    // Enable Start only after the A-Frame scene is fully initialized
+    // Enable Start only when scene is ready
     scene.addEventListener('loaded', ()=>{
-      startBtn.textContent = 'Start';
-      startBtn.disabled = false;
+      start.textContent = 'Start';
+      start.disabled = false;
     });
 
-    // Speak when the marker is found
-    scene.addEventListener("targetFound", ()=>{
-      try { voice.currentTime = 0; voice.play(); } catch(_) {}
-      log("Marker found → speaking");
-    });
-    scene.addEventListener("targetLost", ()=>{ log("Marker lost"); });
+    // Speak when poster found
+    scene.addEventListener('targetFound', ()=>{ try{ voice.currentTime=0; voice.play(); }catch(_){} log('Marker found → speaking'); });
+    scene.addEventListener('targetLost',  ()=>{ log('Marker lost'); });
 
-    // Extra diagnostics: can the browser even see a camera?
+    // Quick hardware check
     async function canSeeAnyCamera(){
-      if (!navigator.mediaDevices?.enumerateDevices) return true; // not supported → don't block
+      if (!navigator.mediaDevices?.enumerateDevices) return true;
       try{
         const list = await navigator.mediaDevices.enumerateDevices();
-        const cams = list.filter(d => d.kind === 'videoinput');
-        return cams.length > 0;
+        return list.some(d => d.kind === 'videoinput');
       }catch{ return true; }
     }
 
-    startBtn.addEventListener('click', async ()=>{
+    start.addEventListener('click', async ()=>{
       hud.style.display = 'block';
       gate.style.display = 'none';
 
-      // unlock audio on mobile
+      // unlock audio
       try { await voice.play(); voice.pause(); voice.currentTime = 0; } catch(_) {}
 
-      // quick hardware check
-      if (!(await canSeeAnyCamera())){
-        log("No camera detected on this device/user profile.");
-        return;
-      }
+      // ensure a camera exists
+      if (!(await canSeeAnyCamera())){ log('No camera detected on this device/profile.'); return; }
 
-      // request camera once to trigger permission UI
+      // ask permission once so OS prompt appears
       if (navigator.mediaDevices?.getUserMedia) {
         try {
-          const s = await navigator.mediaDevices.getUserMedia({video:true});
+          const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'environment' } } });
           s.getTracks().forEach(t=>t.stop());
         } catch (e) {
-          log("Camera blocked — enable camera for this site in browser settings.\nTips:\n• iPhone Safari: aA ▸ Website Settings ▸ Camera ▸ Allow\n• Android Chrome: lock icon ▸ Permissions ▸ Camera ▸ Allow");
-          return;
+          // If exact rear not available, fall back to generic
+          try{
+            const s2 = await navigator.mediaDevices.getUserMedia({ video: true });
+            s2.getTracks().forEach(t=>t.stop());
+          }catch(e2){
+            log("Camera blocked — allow camera for this site.\nTips:\n• iPhone Safari: aA ▸ Website Settings ▸ Camera ▸ Allow\n• Android Chrome: lock icon ▸ Permissions ▸ Camera ▸ Allow");
+            return;
+          }
         }
       }
 
-      // start AR (after scene loaded)
-      try {
+      try{
         await scene.systems["mindar-image-system"].start();
-        log("Tracking… point at the poster.");
-      } catch (e) {
-        log("Failed to start AR: " + (e.message || e));
+        log('Tracking… point at the poster.');
+      }catch(e){
+        log('Failed to start AR: ' + (e.message || e));
       }
     });
   </script>
