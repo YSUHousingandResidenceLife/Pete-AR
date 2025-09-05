@@ -3,44 +3,55 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pete — Android AR</title>
+  <title>Pete — AR</title>
   <style>
     :root { --ysu:#cc0000; }
     html,body { margin:0; height:100%; background:#000; color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
     .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; }
-    .card { width:min(700px,94vw); background:#101010; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.4); padding:28px; }
+    .card { width:min(720px,94vw); background:#101010; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.4); padding:28px; }
     h1 { margin:0 0 8px; font-size:22px; }
     p  { margin:0 0 18px; opacity:.9; }
     .btns { display:flex; flex-direction:column; gap:12px; margin-top:10px; }
-    a.btn { display:block; text-align:center; text-decoration:none; font-weight:800; padding:14px 16px; border-radius:999px; }
+    a.btn {
+      display:block; text-align:center; text-decoration:none; font-weight:800;
+      padding:14px 16px; border-radius:999px;
+    }
     a.primary { background:var(--ysu); color:#fff; }
-    a.light { background:#fff; color:#000; }
-    .note { margin-top:14px; font-size:12px; opacity:.7; line-height:1.4; }
+    a.light   { background:#fff; color:#000; }
+    .note { margin-top:14px; font-size:12px; opacity:.75; line-height:1.4; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>See Pete in your space (Android)</h1>
-      <p>Tap below to launch Pete in your phone’s native AR viewer.</p>
+      <h1>Pete — AR Experience</h1>
+      <p>Start by following YSU Housing & Residence Life, then pick your device.</p>
 
       <div class="btns">
-        <!-- ANDROID AR (Scene Viewer). Loads Pete directly from Google Drive -->
+        <!-- 1) FOLLOW -->
+        <a class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
+          Follow @ysu_hrl
+        </a>
+
+        <!-- 2) ANDROID (GLB on Google Drive) -->
         <a class="btn primary"
            href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownload%26id%3D1yiHuNsmyVQ_BPvOOdRqFM3bWCu7zzmad&title=Pete&mode=ar_preferred"
            rel="noopener">
-          Open Pete in AR
+          View Pete in AR (Android)
         </a>
 
-        <!-- Instagram follow link -->
-        <a class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
-          Follow @ysu_hrl
+        <!-- 3) iPHONE (USDZ on Google Drive) -->
+        <a class="btn light"
+           href="https://drive.google.com/uc?export=download&id=1HiN4_EkPxDbUWEt2jcxWB85iZR8Y3X1C"
+           rel="ar">
+          View Pete in AR (iPhone)
         </a>
       </div>
 
       <div class="note">
-        Works on Android with Google Scene Viewer.  
-        iPhone requires a <code>.usdz</code> version (can be added later).
+        • Works on Android via Google Scene Viewer (GLB).<br/>
+        • Works on iPhone via AR Quick Look (USDZ).<br/>
+        • Make sure both Drive files are shared as “Anyone with the link” so they open for students.
       </div>
     </div>
   </div>
