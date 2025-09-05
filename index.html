@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <title>Pete WebAR — Rear Cam, Visible Preview, Flip</title>
+  <title>Pete WebAR — Stable Camera, Rear + Flip</title>
   <style>
     html,body{margin:0;padding:0;height:100%;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
-    /* MindAR injects a <video>. Make sure it's visible and behind 3D */
+    /* Ensure MindAR's camera video is visible under the WebGL canvas */
     video.mindar-video { position:fixed; inset:0; object-fit:cover; z-index:0 !important; background:#000; }
     canvas.a-canvas   { position:fixed !important; inset:0 !important; z-index:1 !important; }
     #gate,#hud{position:fixed;left:0;right:0;z-index:2}
@@ -16,12 +16,11 @@
     #hud{pointer-events:none}
     #hud .row{display:flex;gap:12px;justify-content:center;align-items:center}
     #cta{position:fixed;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:12px}
-    #cta a,#cta button{pointer-events:auto;text-decoration:none;background:#ffffffee;color:#000;border-radius:999px;padding:10px 14px;
-                       font-weight:700;border:none}
+    #cta a,#cta button{pointer-events:auto;text-decoration:none;background:#ffffffee;color:#000;border-radius:999px;padding:10px 14px;font-weight:700;border:none}
     #debug{position:fixed;top:8px;left:8px;color:#fff;font-size:12px;background:rgba(0,0,0,.55);padding:6px 8px;border-radius:8px;white-space:pre-line}
   </style>
 
-  <!-- Local libs (you already have these in /libs) -->
+  <!-- Local libs already in your repo -->
   <script src="./libs/aframe.min.js"></script>
   <script src="./libs/mindar-image-aframe.prod.js"></script>
 </head>
@@ -29,7 +28,7 @@
   <!-- Start gate -->
   <div id="gate">
     <img src="./assets/marker.jpg" alt="Scan Marker" style="width:120px;height:auto;border-radius:8px;border:1px solid #333;opacity:.95"/>
-    <div style="max-width:380px">Point your phone at the poster, then tap Start. You should see the camera preview; audio will play when Pete appears.</div>
+    <div style="max-width:380px">Point your phone at the poster, then tap Start. You should see the live camera; Pete will speak when the poster is detected.</div>
     <button id="startBtn" class="btn" disabled>Loading…</button>
   </div>
 
@@ -51,14 +50,12 @@
     device-orientation-permission-ui="enabled: false"
     renderer="colorManagement: true, physicallyCorrectLights: true"
     embedded
-    mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 1; uiLoading: true; uiError: true; uiScanning: true;
-                   videoSettings: { &quot;facingMode&quot;: &quot;environment&quot; }"
+    mindar-image="imageTargetSrc: ./assets/targets.mind; maxTrack: 1; uiLoading: true; uiError: true; uiScanning: true; videoSettings: { &quot;facingMode&quot;: &quot;environment&quot; }"
     id="scene">
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
     <a-entity mindar-image-target="targetIndex: 0">
-      <!-- Visible Pete: larger, slightly lifted, double-sided -->
       <a-gltf-model id="pete"
         src="./assets/pete.glb"
         position="0 0.06 0"
@@ -81,12 +78,17 @@
     const flip    = document.getElementById('flipBtn');
 
     function log(m){ debugEl.textContent = m; }
+    function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
     // Enable Start when A-Frame scene fully booted
     scene.addEventListener('loaded', ()=>{
       start.textContent = 'Start';
       start.disabled = false;
     });
+
+    // MindAR lifecycle diagnostics
+    scene.addEventListener('arReady', ()=>{ log('Camera stream ready. If preview is black, give it a second.'); });
+    scene.addEventListener('arError', (e)=>{ log('AR error: ' + (e.detail?.message || 'unknown')); });
 
     // Play voice when marker found
     scene.addEventListener('targetFound', ()=>{
@@ -96,83 +98,98 @@
     scene.addEventListener('targetLost', ()=>{ log('Marker lost'); });
 
     // Helpers
-    function getMindVideo(){
-      // MindAR attaches a <video> to document with class 'mindar-video'
-      return document.querySelector('video.mindar-video');
-    }
+    function mindVideo(){ return document.querySelector('video.mindar-video') || document.querySelector('video'); }
+
     async function preflightCamera(prefer = 'environment'){
       if (!navigator.mediaDevices?.getUserMedia) return;
+      // Try preferred facing
       try {
         const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: prefer } } });
         s.getTracks().forEach(t=>t.stop());
-      } catch (_e) {
-        // fallback
-        const s2 = await navigator.mediaDevices.getUserMedia({ video: true });
-        s2.getTracks().forEach(t=>t.stop());
-      }
+        return;
+      } catch(_) {}
+      // Fallback to generic camera
+      const s2 = await navigator.mediaDevices.getUserMedia({ video: true });
+      s2.getTracks().forEach(t=>t.stop());
     }
+
     async function startAR(){
+      // Start MindAR; wait for arReady so the video element exists
       await scene.systems["mindar-image-system"].start();
-      // Diagnostics: confirm the camera video is playing
-      const v = getMindVideo();
-      if (v){
-        const rs = v.readyState; // 0-4
-        log(`Tracking… point at the poster.\nVideo readyState=${rs} ${rs>=2?'(OK)':'(loading)'}`);
-      } else {
-        log('Tracking… (video element not found yet)');
+      // Wait up to ~1s for MindAR to attach the <video>
+      for (let i=0;i<10;i++){
+        const v = mindVideo();
+        if (v){ 
+          // Try to ensure it starts playing
+          try { await v.play(); } catch(_){}
+          log(`Tracking… point at the poster.\nVideo detected (readyState=${v.readyState}).`);
+          return;
+        }
+        await sleep(100);
       }
+      log('Tracking… point at the poster.\n(Video element not found yet — tap Flip once, or wait and try again.)');
     }
+
     async function stopAR(){
       try { await scene.systems["mindar-image-system"].stop(); } catch(_){}
     }
 
-    async function flipCamera(){
-      // Toggle facing mode in component, then fully restart AR
-      const comp = scene.getAttribute('mindar-image');
-      let vs;
-      try { vs = (typeof comp.videoSettings === 'string') ? JSON.parse(comp.videoSettings) : comp.videoSettings; } catch { vs = {}; }
-      const current = (vs && vs.facingMode) ? vs.facingMode : 'environment';
-      const next = current === 'environment' ? 'user' : 'environment';
-      const nextJSON = JSON.stringify({ facingMode: next });
-
-      scene.setAttribute('mindar-image', `imageTargetSrc: ./assets/targets.mind; maxTrack: 1; uiLoading: true; uiError: true; uiScanning: true; videoSettings: ${nextJSON}`);
-      try {
-        log(`Switching camera → ${next}…`);
-        await stopAR();
-        await preflightCamera(next);
-        await startAR();
-      } catch (e) {
-        log('Failed to switch camera: ' + (e.message || e));
-      }
+    async function safeRestartWithFacing(facing){
+      // Apply facing mode to component (as JSON string so A-Frame parses it)
+      const json = JSON.stringify({ facingMode: facing });
+      scene.setAttribute('mindar-image',
+        `imageTargetSrc: ./assets/targets.mind; maxTrack: 1; uiLoading: true; uiError: true; uiScanning: true; videoSettings: ${json}`
+      );
+      // Preflight and restart
+      await stopAR();
+      await preflightCamera(facing);
+      await startAR();
     }
 
-    // Start flow
+    // UI wiring
     start.addEventListener('click', async ()=>{
       hud.style.display = 'block';
       gate.style.display = 'none';
 
-      // unlock audio
+      // Unlock audio on mobile
       try { await voice.play(); voice.pause(); voice.currentTime = 0; } catch(_){}
 
-      // preflight rear
-      try { await preflightCamera('environment'); }
-      catch (e) {
+      try {
+        await preflightCamera('environment');
+      } catch (e) {
         log("Camera blocked — allow camera for this site.\nTips:\n• iPhone Safari: aA ▸ Website Settings ▸ Camera ▸ Allow\n• Android Chrome: lock icon ▸ Permissions ▸ Camera ▸ Allow");
         return;
       }
 
-      // start AR
-      try { await startAR(); } catch(e){ log('Failed to start AR: ' + (e.message || e)); }
-
-      // After start, verify the injected video is visible and playing
-      setTimeout(()=>{
-        const v = getMindVideo();
-        if (!v) { log(debugEl.textContent + "\n(No video element yet — if preview is black, try Flip once.)"); return; }
-        if (v.readyState < 2) { log(debugEl.textContent + "\n(Video not ready yet — give it a second or Flip once.)"); }
-      }, 700);
+      try {
+        await startAR();
+      } catch (e) {
+        log('Failed to start AR: ' + (e.message || e));
+      }
     });
 
-    flip.addEventListener('click', flipCamera);
+    flip.addEventListener('click', async ()=>{
+      log('Switching camera…');
+      try {
+        // Read current facing if present
+        const comp = scene.getAttribute('mindar-image');
+        let vs;
+        try { vs = (typeof comp.videoSettings === 'string') ? JSON.parse(comp.videoSettings) : comp.videoSettings; } catch { vs = {}; }
+        const current = (vs && vs.facingMode) ? vs.facingMode : 'environment';
+        const next = current === 'environment' ? 'user' : 'environment';
+        await safeRestartWithFacing(next);
+      } catch (e) {
+        // If switching fails, try a generic restart (no strict facing)
+        try {
+          log('Switch failed — retrying with generic camera…');
+          await stopAR();
+          await preflightCamera(); // no preference
+          await startAR();
+        } catch (e2) {
+          log('Flip failed to start camera source: ' + (e2.message || e2));
+        }
+      }
+    });
   </script>
 </body>
 </html>
