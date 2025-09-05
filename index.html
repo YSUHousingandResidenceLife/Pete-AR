@@ -55,9 +55,9 @@
       </div>
 
       <div class="note">
-        • Android uses Google Scene Viewer (GLB). iPhone uses AR Quick Look (USDZ).<br/>
-        • AR buttons unlock after tapping the Follow button (we can’t verify a true “follow” — this just gates access on a click).<br/>
-        • Make sure both Drive files are shared as “Anyone with the link.”
+        • Android uses Google Scene Viewer (GLB).<br/>
+        • iPhone uses AR Quick Look (USDZ).<br/>
+        • AR buttons unlock after tapping the Follow button. 
       </div>
     </div>
   </div>
@@ -77,16 +77,13 @@
       lockHint.textContent = 'Unlocked — choose Android or iPhone.';
     }
 
-    // Restore unlock state if they've tapped Follow before (on this device/browser)
     if (localStorage.getItem('ysu_hrl_follow_clicked') === '1') {
       unlock();
     }
 
-    // When Follow is clicked: open IG (default) AND unlock locally
     followBtn.addEventListener('click', () => {
       try { localStorage.setItem('ysu_hrl_follow_clicked','1'); } catch(_) {}
       unlock();
-      // Note: we cannot confirm a real "follow" — Instagram doesn't allow that from web.
     }, { passive: true });
   </script>
 </body>
