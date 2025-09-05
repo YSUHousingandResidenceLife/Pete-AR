@@ -3,57 +3,91 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pete — AR</title>
+  <title>Pete — AR (Follow to Unlock)</title>
   <style>
-    :root { --ysu:#cc0000; }
-    html,body { margin:0; height:100%; background:#000; color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+    :root { --ysu:#cc0000; --disabled:#555; --bg:#000; --card:#101010; }
+    html,body { margin:0; height:100%; background:var(--bg); color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
     .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; }
-    .card { width:min(720px,94vw); background:#101010; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.4); padding:28px; }
+    .card { width:min(720px,94vw); background:var(--card); border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.4); padding:28px; }
     h1 { margin:0 0 8px; font-size:22px; }
     p  { margin:0 0 18px; opacity:.9; }
     .btns { display:flex; flex-direction:column; gap:12px; margin-top:10px; }
-    a.btn {
+    .btn {
       display:block; text-align:center; text-decoration:none; font-weight:800;
-      padding:14px 16px; border-radius:999px;
+      padding:14px 16px; border-radius:999px; border:0; cursor:pointer;
     }
-    a.primary { background:var(--ysu); color:#fff; }
-    a.light   { background:#fff; color:#000; }
+    .btn.primary { background:var(--ysu); color:#fff; }
+    .btn.light   { background:#fff; color:#000; }
+    .btn.disabled {
+      background:var(--disabled) !important; color:#bbb !important;
+      pointer-events:none; cursor:not-allowed; opacity:.7;
+    }
     .note { margin-top:14px; font-size:12px; opacity:.75; line-height:1.4; }
+    .hint { margin-top:6px; font-size:12px; opacity:.8; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>Pete — AR Experience</h1>
-      <p>Start by following YSU Housing & Residence Life, then pick your device.</p>
+      <p>Step 1: tap Follow. Steps 2–3 unlock after that.</p>
 
       <div class="btns">
-        <!-- 1) FOLLOW -->
-        <a class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
+        <!-- 1) FOLLOW (unlocks AR buttons) -->
+        <a id="followBtn" class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
           Follow @ysu_hrl
         </a>
+        <div class="hint" id="lockHint">After tapping Follow, return here — the AR buttons below will unlock.</div>
 
-        <!-- 2) ANDROID (GLB on Google Drive) -->
-        <a class="btn primary"
+        <!-- 2) ANDROID — Google Scene Viewer (GLB from Google Drive) -->
+        <a id="androidBtn" class="btn primary disabled"
            href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownload%26id%3D1yiHuNsmyVQ_BPvOOdRqFM3bWCu7zzmad&title=Pete&mode=ar_preferred"
-           rel="noopener">
+           rel="noopener" aria-disabled="true">
           View Pete in AR (Android)
         </a>
 
-        <!-- 3) iPHONE (USDZ on Google Drive) -->
-        <a class="btn light"
+        <!-- 3) iPHONE — AR Quick Look (USDZ from Google Drive) -->
+        <a id="iphoneBtn" class="btn light disabled"
            href="https://drive.google.com/uc?export=download&id=1HiN4_EkPxDbUWEt2jcxWB85iZR8Y3X1C"
-           rel="ar">
+           rel="ar" aria-disabled="true">
           View Pete in AR (iPhone)
         </a>
       </div>
 
       <div class="note">
-        • Works on Android via Google Scene Viewer (GLB).<br/>
-        • Works on iPhone via AR Quick Look (USDZ).<br/>
-        • Make sure both Drive files are shared as “Anyone with the link” so they open for students.
+        • Android uses Google Scene Viewer (GLB). iPhone uses AR Quick Look (USDZ).<br/>
+        • AR buttons unlock after tapping the Follow button (we can’t verify a true “follow” — this just gates access on a click).<br/>
+        • Make sure both Drive files are shared as “Anyone with the link.”
       </div>
     </div>
   </div>
+
+  <script>
+    // Gate logic: unlock after user clicks Follow (remember via localStorage)
+    const followBtn  = document.getElementById('followBtn');
+    const androidBtn = document.getElementById('androidBtn');
+    const iphoneBtn  = document.getElementById('iphoneBtn');
+    const lockHint   = document.getElementById('lockHint');
+
+    function unlock(){
+      [androidBtn, iphoneBtn].forEach(el=>{
+        el.classList.remove('disabled');
+        el.setAttribute('aria-disabled','false');
+      });
+      lockHint.textContent = 'Unlocked — choose Android or iPhone.';
+    }
+
+    // Restore unlock state if they've tapped Follow before (on this device/browser)
+    if (localStorage.getItem('ysu_hrl_follow_clicked') === '1') {
+      unlock();
+    }
+
+    // When Follow is clicked: open IG (default) AND unlock locally
+    followBtn.addEventListener('click', () => {
+      try { localStorage.setItem('ysu_hrl_follow_clicked','1'); } catch(_) {}
+      unlock();
+      // Note: we cannot confirm a real "follow" — Instagram doesn't allow that from web.
+    }, { passive: true });
+  </script>
 </body>
 </html>
