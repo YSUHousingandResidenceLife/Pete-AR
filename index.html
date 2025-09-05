@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <title>Pete WebAR — Force Rear & Flip</title>
+  <title>Pete WebAR — Rear Cam, Voice Only</title>
   <style>
     html,body{margin:0;padding:0;height:100%;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
     #gate,#hud{position:fixed;left:0;right:0;z-index:10}
@@ -43,7 +43,7 @@
   <!-- Audio -->
   <audio id="voice" src="./assets/pete-voice.mp3" preload="auto"></audio>
 
-  <!-- A-Frame + MindAR scene (JSON videoSettings forces rear) -->
+  <!-- A-Frame + MindAR scene (force rear camera with JSON) -->
   <a-scene
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false"
@@ -55,17 +55,14 @@
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
     <a-entity mindar-image-target="targetIndex: 0">
-      <!-- Big, double-sided model so it's visible immediately -->
+      <!-- Larger + slightly lifted for visibility; double-sided in case normals are flipped -->
       <a-gltf-model id="pete"
         src="./assets/pete.glb"
-        position="0 0 0"
+        position="0 0.05 0"
         rotation="0 180 0"
-        scale="2.5 2.5 2.5"
+        scale="2 2 2"
         material="side: double">
       </a-gltf-model>
-
-      <!-- Neon box helper: if you see this but not Pete, the GLB needs rescale/re-export -->
-      <a-box position="0 0.15 0" depth="0.1" height="0.1" width="0.1" color="#39FF14"></a-box>
 
       <a-entity light="type: hemisphere; intensity: 1.1; groundColor: #222"></a-entity>
     </a-entity>
@@ -88,54 +85,42 @@
       start.disabled = false;
     });
 
-    // Speak when poster found
+    // Play voice when poster found
     scene.addEventListener('targetFound', ()=>{
       try{ voice.currentTime=0; voice.play(); }catch(_){}
       log('Marker found → speaking');
     });
     scene.addEventListener('targetLost',  ()=>{ log('Marker lost'); });
 
-    // Ask permission early and prefer environment camera
+    // Camera preflight (prefer rear)
     async function preflightCamera(prefer = 'environment'){
       if (!navigator.mediaDevices?.getUserMedia) return;
       try {
         const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: prefer } } });
         s.getTracks().forEach(t=>t.stop());
       } catch (_e) {
-        // try generic if strict prefer fails
         try {
           const s2 = await navigator.mediaDevices.getUserMedia({ video: true });
           s2.getTracks().forEach(t=>t.stop());
-        } catch (e2) {
-          throw e2;
-        }
+        } catch (e2) { throw e2; }
       }
     }
 
-    // Start AR using current mindar-image settings
-    async function startAR(){
-      await scene.systems["mindar-image-system"].start();
-      log('Tracking… point at the poster.');
-    }
+    // Start/Stop AR helpers
+    async function startAR(){ await scene.systems["mindar-image-system"].start(); log('Tracking… point at the poster.'); }
+    async function stopAR(){ try{ await scene.systems["mindar-image-system"].stop(); }catch(_){} }
 
-    // Stop AR (so we can flip camera)
-    async function stopAR(){
-      try { await scene.systems["mindar-image-system"].stop(); } catch(_){}
-    }
-
-    // Flip camera logic: toggle between environment/user and restart
+    // Flip camera handler
     async function flipCamera(){
       const comp = scene.getAttribute('mindar-image');
       let vs;
       try { vs = (typeof comp.videoSettings === 'string') ? JSON.parse(comp.videoSettings) : comp.videoSettings; } catch { vs = {}; }
       const current = (vs && vs.facingMode) ? vs.facingMode : 'environment';
       const next = current === 'environment' ? 'user' : 'environment';
-
-      // Update attribute with proper JSON string
       const nextJSON = JSON.stringify({ facingMode: next });
+
       scene.setAttribute('mindar-image', `imageTargetSrc: ./assets/targets.mind; maxTrack: 1; videoSettings: ${nextJSON}`);
 
-      // Restart AR with new setting
       try {
         log(`Switching camera → ${next}…`);
         await stopAR();
@@ -151,23 +136,18 @@
       hud.style.display = 'block';
       gate.style.display = 'none';
 
-      // unlock audio
+      // unlock audio (mobile)
       try { await voice.play(); voice.pause(); voice.currentTime = 0; } catch(_){}
 
-      // preflight for rear
-      try {
-        await preflightCamera('environment');
-      } catch (e) {
+      // preflight rear
+      try { await preflightCamera('environment'); }
+      catch (e) {
         log("Camera blocked — allow camera for this site.\nTips:\n• iPhone Safari: aA ▸ Website Settings ▸ Camera ▸ Allow\n• Android Chrome: lock icon ▸ Permissions ▸ Camera ▸ Allow");
         return;
       }
 
       // start AR
-      try {
-        await startAR();
-      } catch (e) {
-        log('Failed to start AR: ' + (e.message || e));
-      }
+      try { await startAR(); } catch(e){ log('Failed to start AR: ' + (e.message || e)); }
     });
 
     flip.addEventListener('click', flipCamera);
