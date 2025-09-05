@@ -3,18 +3,46 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pete AR Test</title>
+  <title>Pete — Android AR</title>
+  <style>
+    :root { --ysu:#cc0000; }
+    html,body { margin:0; height:100%; background:#000; color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+    .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; }
+    .card { width:min(700px,94vw); background:#101010; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.4); padding:28px; }
+    h1 { margin:0 0 8px; font-size:22px; }
+    p  { margin:0 0 18px; opacity:.9; }
+    .btns { display:flex; flex-direction:column; gap:12px; margin-top:10px; }
+    a.btn { display:block; text-align:center; text-decoration:none; font-weight:800; padding:14px 16px; border-radius:999px; }
+    a.primary { background:var(--ysu); color:#fff; }
+    a.light { background:#fff; color:#000; }
+    .note { margin-top:14px; font-size:12px; opacity:.7; line-height:1.4; }
+  </style>
 </head>
-<body style="background:#000; color:#fff; font-family:sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; text-align:center;">
-  <div>
-    <h1>Test: Pete AR</h1>
-    <p>If the GLB is uploaded correctly, this button should open AR on Android:</p>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>See Pete in your space (Android)</h1>
+      <p>Tap below to launch Pete in your phone’s native AR viewer.</p>
 
-    <a href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fkalyciakington-YSUHRL.github.io%2FPerte-AR%2Fassets%2Fpete.glb&title=Pete&mode=ar_preferred"
-       rel="noopener"
-       style="display:inline-block; background:#cc0000; color:#fff; padding:14px 18px; border-radius:999px; font-weight:700; text-decoration:none;">
-      Open Pete in AR
-    </a>
+      <div class="btns">
+        <!-- ANDROID AR (Scene Viewer). Loads Pete directly from Google Drive -->
+        <a class="btn primary"
+           href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownload%26id%3D1yiHuNsmyVQ_BPvOOdRqFM3bWCu7zzmad&title=Pete&mode=ar_preferred"
+           rel="noopener">
+          Open Pete in AR
+        </a>
+
+        <!-- Instagram follow link -->
+        <a class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
+          Follow @ysu_hrl
+        </a>
+      </div>
+
+      <div class="note">
+        Works on Android with Google Scene Viewer.  
+        iPhone requires a <code>.usdz</code> version (can be added later).
+      </div>
+    </div>
   </div>
 </body>
 </html>
