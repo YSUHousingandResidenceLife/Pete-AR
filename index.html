@@ -27,9 +27,7 @@
     .status { font-size:12px; }
     .lock { color:var(--muted); }
     .ok { color:#6afc93; }
-    @media (min-width:640px){
-      .pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    }
+    @media (min-width:640px){ .pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; } }
   </style>
 </head>
 <body>
@@ -39,12 +37,14 @@
 
       <!-- STEP 1 -->
       <div class="section">
-        <div class="title"><span class="badge">STEP 1</span> Quick unlock</div>
+        <div class="title"><span class="badge">STEP 1</span> Quick unlock (per visit)</div>
         <div class="btns pair">
           <a id="followBtn" class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">Follow @ysu_hrl (first time)</a>
           <a id="viewBtn"   class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">View & Like any post (returning)</a>
         </div>
-        <div id="status" class="status lock tiny" style="margin-top:8px;">3D AR is locked. Do Step 1, then return here.</div>
+        <div id="status" class="status lock tiny" style="margin-top:8px;">
+          3D AR is locked. Tap Follow or View & Like, then return here to unlock.
+        </div>
       </div>
 
       <!-- STEP 2 -->
@@ -85,11 +85,12 @@
       </div>
 
       <div class="spacer"></div>
-      <div id="hint" class="tiny muted">Tip: after Follow or View/Like, come back to this page — you’ll see “Unlocked”.</div>
+      <div id="hint" class="tiny muted">This page resets on refresh — do Step 1 each time.</div>
     </div>
   </div>
 
   <script>
+    // Elements
     const followBtn  = document.getElementById('followBtn');
     const viewBtn    = document.getElementById('viewBtn');
     const androidBtn = document.getElementById('androidBtn');
@@ -97,30 +98,7 @@
     const statusLine = document.getElementById('status');
     const hint       = document.getElementById('hint');
 
-    const FLAG_KEY = 'ysu_hrl_engaged';
-    const FLAG_TS  = 'ysu_hrl_engaged_ts';
-    let pendingEngagement = false;
-
-    function markEngaged() {
-      try {
-        sessionStorage.setItem(FLAG_KEY, '1');
-        localStorage.setItem(FLAG_KEY, '1');
-        localStorage.setItem(FLAG_TS, String(Date.now()));
-      } catch(_) {}
-    }
-
-    function isRecentlyEngaged(minutes=120) {
-      try {
-        if (sessionStorage.getItem(FLAG_KEY) === '1') return true;
-        const ts = parseInt(localStorage.getItem(FLAG_TS) || '0', 10);
-        if (!isNaN(ts)) {
-          const ageMin = (Date.now() - ts) / 60000;
-          return ageMin <= minutes;
-        }
-      } catch(_) {}
-      return false;
-    }
-
+    // No storage, no memory. Locked on every fresh load.
     function unlock() {
       [androidBtn, iphoneBtn].forEach(el => {
         el.classList.remove('disabled');
@@ -130,30 +108,18 @@
       });
       statusLine.textContent = '3D AR is unlocked — choose iPhone or Android.';
       statusLine.classList.remove('lock'); statusLine.classList.add('ok');
-      hint.textContent = 'Ready! Tap iPhone or Android for 3D, or use Selfie Mode 2D anytime.';
+      hint.textContent = 'Unlocked for this visit. Refreshing will relock.';
     }
 
-    // Mark + unlock on click
-    function onCTA() {
-      pendingEngagement = true;
-      markEngaged();
-      unlock();
-    }
+    // Unlock immediately on click (current visit only)
+    function onCTA() { unlock(); }
+
     followBtn.addEventListener('click', onCTA, { passive: true });
     viewBtn  .addEventListener('click', onCTA, { passive: true });
 
-    // If the page hides (user jumps to IG app), also mark engagement
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden' && pendingEngagement) {
-        markEngaged();
-      }
-    });
-
-    // Auto-unlock on return
-    window.addEventListener('pageshow', () => {
-      if (isRecentlyEngaged()) unlock();
-      pendingEngagement = false;
-    });
+    // Optional: if the page was backgrounded (e.g., IG app opened) and then returned
+    // without a full reload, keep it simple — no auto-unlock, no storage.
+    // Users will see the page still open; if they tapped before leaving, onCTA already ran.
   </script>
 </body>
 </html>
