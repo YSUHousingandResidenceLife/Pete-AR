@@ -2,137 +2,262 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pete — AR Experience</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pete — Selfie Mode</title>
   <style>
-    :root { --ysu:#cc0000; --bg:#000; --card:#101010; --disabled:#555; }
-    html,body { margin:0; height:100%; background:var(--bg); color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
-    .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; }
-    .card { width:min(820px,94vw); background:var(--card); border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.4); padding:28px; }
-    h1 { margin:0 0 8px; font-size:24px; }
-    p  { margin:0 0 18px; opacity:.95; line-height:1.35; }
-    .btns { display:flex; flex-direction:column; gap:12px; margin-top:10px; }
-    .btn {
-      display:block; text-align:center; text-decoration:none; font-weight:800;
-      padding:14px 16px; border-radius:999px; border:0; cursor:pointer;
-      transition:transform .06s ease;
+    :root { --ysu:#cc0000; --bg:#000; }
+    html,body { margin:0; height:100%; background:#000; color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+    .wrap { display:flex; flex-direction:column; height:100%; }
+    .topbar { padding:10px 12px; background:rgba(0,0,0,.6); display:flex; gap:8px; align-items:center; }
+    .title { font-weight:800; font-size:16px; }
+    .stage { position:relative; flex:1; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; }
+    video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); } /* mirror selfie */
+    canvas { position:absolute; inset:0; pointer-events:none; } /* capture compositing */
+    .sticker {
+      position:absolute; left:50%; top:55%; translate:-50% -50%;
+      touch-action:none; user-select:none; cursor:grab; max-width:50vw; width:40vmin;
+      transform:translate(-50%,-50%) rotate(0deg) scale(1); will-change:transform;
+      display:none; /* hidden until camera starts */
     }
-    .btn:active { transform:scale(.98); }
-    .primary { background:var(--ysu); color:#fff; }
-    .light   { background:#fff; color:#000; }
-    .outline { background:transparent; color:#fff; box-shadow:inset 0 0 0 2px rgba(255,255,255,.15); }
-    .disabled {
-      background:var(--disabled) !important; color:#bbb !important;
-      pointer-events:none; cursor:not-allowed; opacity:.7;
+    .controls {
+      display:flex; gap:10px; padding:10px; background:rgba(0,0,0,.7);
+      border-top:1px solid rgba(255,255,255,.1);
     }
-    .hint { margin-top:6px; font-size:12px; opacity:.85; }
-    .section-title { margin:14px 0 6px; font-weight:900; font-size:14px; letter-spacing:.2px; opacity:.9; }
-    .rule { height:1px; background:rgba(255,255,255,.08); margin:14px 0; border:0; }
-    .steps { background:rgba(255,255,255,.04); border-radius:14px; padding:14px; margin:10px 0 6px; }
-    .step { margin:0 0 10px; }
-    .badge { display:inline-block; min-width:22px; height:22px; padding:0 7px; border-radius:999px; background:#fff; color:#000; font-weight:900; font-size:12px; line-height:22px; text-align:center; margin-right:8px; }
-    .small { font-size:12px; opacity:.9; }
+    button, .btn {
+      padding:12px 14px; border:0; border-radius:999px; font-weight:800; cursor:pointer;
+      background:#fff; color:#000;
+    }
+    .btn-primary { background:var(--ysu); color:#fff; }
+    .range { flex:1; display:flex; align-items:center; gap:10px; }
+    input[type="range"] { width:100%; }
+    .hint { padding:8px 12px; font-size:12px; opacity:.85; }
+    .center { text-align:center; }
+    .start {
+      position:relative; z-index:2; display:flex; flex-direction:column; gap:10px;
+      align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.5); border-radius:16px;
+    }
+    .error { color:#ffb4b4; font-size:13px; line-height:1.3; max-width:680px; }
+    .hidden { display:none !important; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="card">
-      <h1>Pete — AR Experience</h1>
-      <p class="small">Follow the steps below to unlock 3D AR. <b>Selfie Mode</b> is also available anytime for front-camera photos with Pete.</p>
+    <div class="topbar">
+      <div class="title">Selfie with Pete</div>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <a class="btn" href="../">Back</a>
+        <button id="flip" class="btn">Flip Cam</button>
+      </div>
+    </div>
 
-      <!-- STEPS (clear explanation) -->
-      <div class="steps" aria-labelledby="steps-title">
-        <div id="steps-title" class="section-title">How it works</div>
-        <p class="step"><span class="badge">1</span><b>First-time viewers</b>: tap <i>Follow @ysu_hrl</i> below, follow the page, then return here. </p>
-        <p class="step"><span class="badge">2</span><b>Returning users</b>: tap <i>View @ysu_hrl</i>, open any post, <b>view & like</b> it, then return here. </p>
-        <p class="step"><span class="badge">3</span>When you come back, the <b>3D AR</b> buttons unlock. Or use <b>Selfie Mode</b> any time.</p>
+    <div class="stage" id="stage">
+      <!-- user-gesture start (fixes 401/NotAllowedError on Safari/Chrome) -->
+      <div id="starter" class="start center">
+        <div class="hint">Tap to allow camera and start selfie mode.</div>
+        <button id="start" class="btn-primary">Start Camera</button>
+        <div id="err" class="error hidden"></div>
       </div>
 
-      <div class="btns">
-        <!-- FOLLOW / VIEW -->
-        <a id="followBtn" class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
-          Follow @ysu_hrl (first-time viewers)
-        </a>
+      <video id="video" autoplay playsinline muted></video>
+      <!-- Use ABSOLUTE path so GitHub Pages path issues can’t break it -->
+      <img id="pete" class="sticker" src="/Perte-AR/assets/pete-sticker.png" alt="Pete sticker" />
+      <canvas id="capture"></canvas>
+    </div>
 
-        <div class="hint" id="hint">
-          After tapping <b>Follow</b> or <b>View</b>, return here — the AR buttons below will unlock to download and view Pete.
-        </div>
+    <div class="hint">Tip: pinch to scale, two fingers to rotate, drag to move Pete.</div>
 
-        <div class="hint">
-          Returning users: you must view and like any post, then return to unlock.
-        </div>
-        <a id="viewBtn" class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
-          View @ysu_hrl (returning users)
-        </a>
-
-        <hr class="rule" />
-
-        <!-- MODE CHOOSER HEADERS -->
-        <div class="section-title">Choose a mode</div>
-
-        <!-- A) 3D AR — rear camera (UNLOCKED after Follow/View) -->
-        <p class="small" style="margin-top:-4px;">World-tracked 3D Pete (rear camera). Unlocks after steps above.</p>
-
-        <!-- ANDROID — Google Scene Viewer -->
-        <a id="androidBtn" class="btn primary disabled"
-           href="#"
-           data-href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownload%26id%3D1yiHuNsmyVQ_BPvOOdRqFM3bWCu7zzmad&title=Pete&mode=ar_preferred"
-           aria-disabled="true" tabindex="-1">
-          3D Pete in your space (Android)
-        </a>
-
-        <!-- iPHONE — AR Quick Look -->
-        <a id="iphoneBtn" class="btn light disabled"
-           href="#"
-           data-href="https://drive.google.com/uc?export=download&id=1HiN4_EkPxDbUWEt2jcxWB85iZR8Y3X1C"
-           rel="ar" aria-disabled="true" tabindex="-1">
-          3D Pete in your space (iPhone)
-        </a>
-
-        <hr class="rule" />
-
-        <!-- B) SELFIE — front camera (ALWAYS AVAILABLE) -->
-        <div class="section-title">Selfie Mode (front camera)</div>
-        <p class="small" style="margin-top:-4px;">Open your front camera and place a high-res Pete sticker on your photo, then capture & download.</p>
-        <a class="btn outline" href="./selfie/">
-          Selfie with Pete (Front Camera)
-        </a>
+    <div class="controls">
+      <div class="range">
+        <label for="scale">Scale</label>
+        <input id="scale" type="range" min="0.4" max="2.0" step="0.02" value="1" disabled>
       </div>
+      <div class="range">
+        <label for="rotate">Rotate</label>
+        <input id="rotate" type="range" min="-45" max="45" step="1" value="0" disabled>
+      </div>
+      <button id="snap" class="btn-primary" disabled>Capture Photo</button>
+      <a id="download" class="btn" download="pete-selfie.png" style="display:none;">Download</a>
     </div>
   </div>
 
   <script>
-    // Elements
-    const followBtn  = document.getElementById('followBtn');
-    const viewBtn    = document.getElementById('viewBtn');
-    const androidBtn = document.getElementById('androidBtn');
-    const iphoneBtn  = document.getElementById('iphoneBtn');
-    const hint       = document.getElementById('hint');
+    const video = document.getElementById('video');
+    const flipBtn = document.getElementById('flip');
+    const startBtn = document.getElementById('start');
+    const starter = document.getElementById('starter');
+    const errBox = document.getElementById('err');
 
-    // Unlock function: enables the world-AR buttons AFTER an engagement action.
-    function unlock() {
-      [androidBtn, iphoneBtn].forEach(el => {
-        el.classList.remove('disabled');
-        el.setAttribute('aria-disabled', 'false');
-        el.setAttribute('tabindex', '0');
-        el.setAttribute('href', el.getAttribute('data-href'));
-      });
-      hint.textContent = 'Unlocked — choose Android or iPhone to launch 3D Pete.';
+    const sticker = document.getElementById('pete');
+    const scaleRange = document.getElementById('scale');
+    const rotateRange = document.getElementById('rotate');
+    const canvas = document.getElementById('capture');
+    const snapBtn = document.getElementById('snap');
+    const dl = document.getElementById('download');
+
+    let usingFront = true;
+    let currentStream;
+
+    function enableControls(on) {
+      [scaleRange, rotateRange, snapBtn].forEach(el => el.disabled = !on);
+      if (on) sticker.style.display = 'block';
     }
 
-    // Unlock when users click Follow (first-time) OR View (returning)
-    followBtn.addEventListener('click', unlock, { passive: true });
-    viewBtn.addEventListener('click', unlock, { passive: true });
+    function showError(msg) {
+      errBox.textContent = msg;
+      errBox.classList.remove('hidden');
+    }
 
-    // Optional: also try to auto-unlock when they return (uses a short-lived flag in sessionStorage)
-    // This improves UX if the browser opens Instagram in a new tab and they come back later.
-    const FLAG = 'ysu_hrl_engaged';
-    [followBtn, viewBtn].forEach(btn => {
-      btn.addEventListener('click', () => sessionStorage.setItem(FLAG, '1'), { passive: true });
+    async function startCamera() {
+      // Clear previous error
+      errBox.classList.add('hidden');
+      errBox.textContent = '';
+      // Stop any previous stream
+      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+
+      // Some browsers need muted + playsinline set before play
+      video.muted = true; video.setAttribute('playsinline', ''); 
+
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: usingFront ? 'user' : { exact: 'environment' } },
+          audio: false
+        });
+      } catch (e) {
+        // Retry with non-exact constraint
+        try {
+          currentStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: usingFront ? 'user' : 'environment' }, audio:false
+          });
+        } catch (err) {
+          // Helpful guidance for users
+          let help = "Camera access was blocked.";
+          help += " • iPhone Safari: Settings → Safari → Camera → Allow.\n";
+          help += " • Chrome (Android/iOS): tap the padlock → Site settings → Allow Camera.\n";
+          help += " • Make sure you tapped 'Start Camera' and the page is on HTTPS.";
+          showError(help + "\n\n(" + (err.name || "Error") + (err.message ? ": " + err.message : "") + ")");
+          return;
+        }
+      }
+
+      video.srcObject = currentStream;
+      await video.play().catch(()=>{});
+      // Mirror when front camera; un-mirror when rear
+      video.style.transform = usingFront ? 'scaleX(-1)' : 'none';
+      enableControls(true);
+      starter.classList.add('hidden');
+    }
+
+    // Use explicit user gesture to start (fixes NotAllowedError/401-like blocks)
+    startBtn.addEventListener('click', startCamera);
+    flipBtn.addEventListener('click', () => { usingFront = !usingFront; startCamera(); });
+
+    // --- Sticker transforms (drag / pinch / rotate) ---
+    let startX=0, startY=0, originX=50, originY=55; // in %
+    let scale = parseFloat(scaleRange.value);
+    let rotation = parseFloat(rotateRange.value);
+    let activePointers = new Map();
+    let baseDistance = null, baseAngle = null, startScale = scale, startRotation = rotation;
+
+    function renderSticker() {
+      sticker.style.left = originX + '%';
+      sticker.style.top = originY + '%';
+      sticker.style.transform =
+        `translate(-50%,-50%) rotate(${rotation}deg) scale(${scale})`;
+    }
+    renderSticker();
+
+    function pointerDown(e){
+      activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+      sticker.setPointerCapture(e.pointerId);
+      sticker.style.cursor = 'grabbing';
+      startX = e.clientX; startY = e.clientY;
+      startScale = scale; startRotation = rotation;
+      if (activePointers.size === 2) {
+        const pts = [...activePointers.values()];
+        baseDistance = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+        baseAngle = Math.atan2(pts[1].y-pts[0].y, pts[1].x-pts[0].x);
+      }
+    }
+    function pointerMove(e){
+      if (!activePointers.has(e.pointerId)) return;
+      activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+
+      if (activePointers.size === 1){
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const stage = document.getElementById('stage').getBoundingClientRect();
+        originX = Math.min(100, Math.max(0, originX + (dx / stage.width)*100));
+        originY = Math.min(100, Math.max(0, originY + (dy / stage.height)*100));
+        startX = e.clientX; startY = e.clientY;
+      } else if (activePointers.size === 2){
+        const pts = [...activePointers.values()];
+        const dist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+        const ang  = Math.atan2(pts[1].y-pts[0].y, pts[1].x-pts[0].x);
+        if (baseDistance) scale = Math.min(2, Math.max(0.4, startScale * (dist/baseDistance)));
+        if (baseAngle!==null) rotation = startRotation + ((ang - baseAngle) * 180/Math.PI);
+        scaleRange.value = scale.toFixed(2);
+        rotateRange.value = rotation.toFixed(0);
+      }
+      renderSticker();
+    }
+    function pointerUp(e){
+      activePointers.delete(e.pointerId);
+      sticker.releasePointerCapture(e.pointerId);
+      sticker.style.cursor = 'grab';
+      if (activePointers.size < 2){ baseDistance = null; baseAngle = null; }
+    }
+
+    sticker.addEventListener('pointerdown', pointerDown);
+    sticker.addEventListener('pointermove', pointerMove);
+    sticker.addEventListener('pointerup', pointerUp);
+    sticker.addEventListener('pointercancel', pointerUp);
+    sticker.addEventListener('pointerleave', pointerUp);
+
+    scaleRange.addEventListener('input', e => { scale = parseFloat(e.target.value); renderSticker(); });
+    rotateRange.addEventListener('input', e => { rotation = parseFloat(e.target.value); renderSticker(); });
+
+    // --- Capture composite (video + sticker) to PNG download ---
+    function drawComposite(){
+      const w = video.videoWidth || 1080;
+      const h = video.videoHeight || 1920;
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (usingFront) {
+        ctx.save(); ctx.scale(-1,1); ctx.drawImage(video, -w, 0, w, h); ctx.restore();
+      } else {
+        ctx.drawImage(video, 0, 0, w, h);
+      }
+      const img = sticker;
+      const cx = (originX/100)*w;
+      const cy = (originY/100)*h;
+      const base = Math.min(w,h) * 0.4;
+      const iw = base * scale;
+      const ih = (img.naturalHeight/img.naturalWidth) * iw;
+
+      ctx.translate(cx, cy);
+      ctx.rotate(rotation * Math.PI/180);
+      ctx.drawImage(img, -iw/2, -ih/2, iw, ih);
+      ctx.setTransform(1,0,0,1,0,0);
+    }
+
+    snapBtn.addEventListener('click', () => {
+      drawComposite();
+      const url = canvas.toDataURL('image/png');
+      dl.href = url; dl.style.display = 'inline-block';
+      dl.click();
     });
-    window.addEventListener('pageshow', () => {
-      if (sessionStorage.getItem(FLAG) === '1') unlock();
-    });
+
+    // Feature detection / helpful messages
+    if (!('mediaDevices' in navigator) || !('getUserMedia' in navigator.mediaDevices)) {
+      showError('This browser does not support camera access. Try Safari (iOS) or Chrome (Android/iOS).');
+      startBtn.disabled = true;
+    }
+    // Prevent running inside cross-origin iframes (can break permissions)
+    try {
+      if (window.top !== window.self) {
+        showError('This page is running inside an embedded frame. Open it directly to use the camera.');
+      }
+    } catch (e) {/* ignore */}
   </script>
 </body>
 </html>
