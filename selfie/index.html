@@ -15,26 +15,19 @@
     canvas { display:none; }
     .sticker {
       position:absolute; left:50%; top:55%; translate:-50% -50%;
-      touch-action:none; user-select:none; cursor:grab; max-width:50vw; width:40vmin;
+      touch-action:none; user-select:none; cursor:grab;
+      width:40vmin; max-width:50vw;
       transform:translate(-50%,-50%) rotate(0deg) scale(1); will-change:transform;
       display:none;
     }
-    .controls {
-      display:flex; flex-direction:column; gap:12px; padding:12px;
-      background:rgba(0,0,0,.75); border-top:1px solid rgba(255,255,255,.1);
-    }
+    .controls { display:flex; flex-direction:column; gap:12px; padding:12px; background:rgba(0,0,0,.75); border-top:1px solid rgba(255,255,255,.1); }
     .sliders { display:flex; gap:12px; }
-    .sliders label { font-size:12px; margin-right:6px; }
     .sliders .range { flex:1; display:flex; align-items:center; gap:6px; }
-    button, .btn {
-      padding:14px 16px; border:0; border-radius:999px; font-weight:800; cursor:pointer;
-      background:#fff; color:#000; font-size:15px;
-    }
+    .sliders label { font-size:12px; margin-right:6px; }
+    button, .btn { padding:14px 16px; border:0; border-radius:999px; font-weight:800; cursor:pointer; background:#fff; color:#000; font-size:15px; }
     .btn-primary { background:var(--ysu); color:#fff; }
     .hint { padding:8px 12px; font-size:12px; opacity:.85; }
-    .start { position:absolute; inset:0; display:flex; flex-direction:column;
-      align-items:center; justify-content:center; gap:10px;
-      background:rgba(0,0,0,.6); z-index:2; }
+    .start { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:rgba(0,0,0,.6); z-index:2; }
     .error { color:#ffb4b4; font-size:13px; line-height:1.3; max-width:680px; text-align:center; }
     .hidden { display:none !important; }
   </style>
@@ -80,6 +73,7 @@
   </div>
 
   <script>
+    const stage=document.getElementById('stage');
     const video=document.getElementById('video'), flipBtn=document.getElementById('flip');
     const startBtn=document.getElementById('start'), starter=document.getElementById('starter');
     const errBox=document.getElementById('err'), sticker=document.getElementById('pete');
@@ -95,7 +89,7 @@
       video.muted=true; video.setAttribute('playsinline','');
       try{
         currentStream=await navigator.mediaDevices.getUserMedia({ video:{facingMode:usingFront?'user':{exact:'environment'}}, audio:false });
-      }catch{ 
+      }catch{
         try{
           currentStream=await navigator.mediaDevices.getUserMedia({ video:{facingMode:usingFront?'user':'environment'}, audio:false });
         }catch(err){
@@ -104,7 +98,8 @@
         }
       }
       video.srcObject=currentStream; await video.play().catch(()=>{});
-      video.style.transform=usingFront?'scaleX(-1)':'none'; enableControls(true); starter.classList.add('hidden');
+      video.style.transform=usingFront?'scaleX(-1)':'none';
+      enableControls(true); starter.classList.add('hidden');
     }
 
     startBtn.addEventListener('click', startCamera);
@@ -116,9 +111,9 @@
     let dragStartX=0, dragStartY=0;
     let baseDistance=null, baseAngle=null;
 
-    function renderSticker(){ 
-      sticker.style.left=originX+'%'; 
-      sticker.style.top=originY+'%'; 
+    function renderSticker(){
+      sticker.style.left=originX+'%';
+      sticker.style.top =originY+'%';
       sticker.style.transform=`translate(-50%,-50%) rotate(${rotation}deg) scale(${scale})`;
     }
 
@@ -135,7 +130,7 @@
     function pointerMove(e){
       if(!activePointers.has(e.pointerId)) return;
       activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      const stageRect=document.getElementById('stage').getBoundingClientRect();
+      const stageRect=stage.getBoundingClientRect();
 
       if(activePointers.size===1){
         const dx=e.clientX-dragStartX, dy=e.clientY-dragStartY;
@@ -145,7 +140,7 @@
       } else if(activePointers.size===2){
         const pts=[...activePointers.values()];
         const dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
-        const ang=Math.atan2(pts[1].y-pts[0].y,pts[1].x-pts[0].x);
+        const ang =Math.atan2(pts[1].y-pts[0].y,pts[1].x-pts[0].x);
         if(baseDistance){ const factor=dist/baseDistance; scale=Math.min(2,Math.max(0.5,scale*factor)); baseDistance=dist; }
         if(baseAngle!==null){ rotation+=((ang-baseAngle)*180/Math.PI)/2; baseAngle=ang; }
         scaleRange.value=scale.toFixed(2); rotateRange.value=rotation.toFixed(0);
@@ -167,7 +162,7 @@
     scaleRange.addEventListener('input',e=>{scale=parseFloat(e.target.value);renderSticker();});
     rotateRange.addEventListener('input',e=>{rotation=parseFloat(e.target.value);renderSticker();});
 
-    // --- Capture with accurate sticker position ---
+    // --- Accurate capture: use sticker's actual on-screen rect ---
     function drawComposite(){
       const vw = video.videoWidth  || 1080;
       const vh = video.videoHeight || 1920;
@@ -176,45 +171,50 @@
       canvas.height = vh;
       const ctx = canvas.getContext('2d');
 
-      // 1) Draw the camera frame
-      if(usingFront){
-        ctx.save(); ctx.scale(-1,1);
-        ctx.drawImage(video,-vw,0,vw,vh);
-        ctx.restore();
-      } else {
-        ctx.drawImage(video,0,0,vw,vh);
-      }
+      // 1) Draw video frame (mirror for front)
+      if(usingFront){ ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-vw,0,vw,vh); ctx.restore(); }
+      else { ctx.drawImage(video,0,0,vw,vh); }
 
-      // 2) Map sticker’s screen position to video pixels
-      const stageRect=document.getElementById('stage').getBoundingClientRect();
-      const coverScale=Math.max(stageRect.width/vw, stageRect.height/vh);
-      const renderW=vw*coverScale, renderH=vh*coverScale;
-      const offsetX=(stageRect.width-renderW)/2;
-      const offsetY=(stageRect.height-renderH)/2;
+      // 2) Map the sticker's on-screen center/size to raw video pixels
+      const stageRect = stage.getBoundingClientRect();
+      const stRect    = sticker.getBoundingClientRect();
 
-      const screenX=(originX/100)*stageRect.width;
-      const screenY=(originY/100)*stageRect.height;
+      // object-fit: cover mapping
+      const coverScale = Math.max(stageRect.width / vw, stageRect.height / vh);
+      const renderW = vw * coverScale;
+      const renderH = vh * coverScale;
+      const offsetX = (stageRect.width  - renderW) / 2;
+      const offsetY = (stageRect.height - renderH) / 2;
 
-      let vx=((screenX-offsetX)/renderW)*vw;
-      let vy=((screenY-offsetY)/renderH)*vh;
-      if(usingFront) vx=vw-vx; // mirror correction
+      // sticker center (screen px relative to stage)
+      const screenCenterX = (stRect.left - stageRect.left) + stRect.width/2;
+      const screenCenterY = (stRect.top  - stageRect.top ) + stRect.height/2;
 
-      // 3) Draw sticker at mapped position
-      const iw=(Math.min(vw,vh)*0.4)*scale;
-      const ih=(sticker.naturalHeight/sticker.naturalWidth)*iw;
+      // map to video pixels
+      let vx = ((screenCenterX - offsetX) / renderW) * vw;
+      let vy = ((screenCenterY - offsetY) / renderH) * vh;
+      if (usingFront) vx = vw - vx; // mirror correction
 
-      ctx.translate(vx,vy);
-      ctx.rotate(rotation*Math.PI/180);
-      ctx.drawImage(sticker,-iw/2,-ih/2,iw,ih);
+      // sticker size on screen -> video pixels
+      const iwVideo = (stRect.width  / renderW) * vw;
+      const ihVideo = (stRect.height / renderH) * vh;
+
+      // 3) Draw sticker at exact spot & size, honoring rotation
+      ctx.translate(vx, vy);
+      ctx.rotate(rotation * Math.PI/180);
+      ctx.drawImage(sticker, -iwVideo/2, -ihVideo/2, iwVideo, ihVideo);
       ctx.setTransform(1,0,0,1,0,0);
     }
 
-    snapBtn.addEventListener('click',()=>{ 
-      drawComposite(); 
-      const url=canvas.toDataURL('image/png'); 
-      dl.href=url; dl.style.display='inline-block'; dl.click(); 
-      setTimeout(()=>{canvas.width=0;canvas.height=0;},100); 
+    snapBtn.addEventListener('click',()=>{
+      drawComposite();
+      const url=canvas.toDataURL('image/png');
+      dl.href=url; dl.style.display='inline-block'; dl.click();
+      setTimeout(()=>{canvas.width=0;canvas.height=0;},100);
     });
+
+    // initial render
+    renderSticker();
   </script>
 </body>
 </html>
