@@ -16,9 +16,9 @@
     .sticker {
       position:absolute; left:50%; top:55%; translate:-50% -50%;
       touch-action:none; user-select:none; cursor:grab;
-      width:40vmin; max-width:50vw;
-      transform:translate(-50%,-50%) rotate(0deg) scale(1); will-change:transform;
-      display:none;
+      width:40vmin; max-width:50vw;           /* base CSS width (before transform) */
+      transform:translate(-50%,-50%) rotate(0deg) scale(1);
+      will-change:transform; display:none;
     }
     .controls { display:flex; flex-direction:column; gap:12px; padding:12px; background:rgba(0,0,0,.75); border-top:1px solid rgba(255,255,255,.1); }
     .sliders { display:flex; gap:12px; }
@@ -162,7 +162,7 @@
     scaleRange.addEventListener('input',e=>{scale=parseFloat(e.target.value);renderSticker();});
     rotateRange.addEventListener('input',e=>{rotation=parseFloat(e.target.value);renderSticker();});
 
-    // --- Accurate capture: use sticker's actual on-screen rect ---
+    // --- Accurate capture: use drag origin (center) + CSS width * scale (pre-rotation) ---
     function drawComposite(){
       const vw = video.videoWidth  || 1080;
       const vh = video.videoHeight || 1920;
@@ -171,35 +171,37 @@
       canvas.height = vh;
       const ctx = canvas.getContext('2d');
 
-      // 1) Draw video frame (mirror for front)
+      // 1) Draw video frame (mirror for front so it matches preview)
       if(usingFront){ ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-vw,0,vw,vh); ctx.restore(); }
       else { ctx.drawImage(video,0,0,vw,vh); }
 
-      // 2) Map the sticker's on-screen center/size to raw video pixels
+      // 2) Compute video <-> screen mapping for object-fit: cover
       const stageRect = stage.getBoundingClientRect();
-      const stRect    = sticker.getBoundingClientRect();
-
-      // object-fit: cover mapping
       const coverScale = Math.max(stageRect.width / vw, stageRect.height / vh);
       const renderW = vw * coverScale;
       const renderH = vh * coverScale;
       const offsetX = (stageRect.width  - renderW) / 2;
       const offsetY = (stageRect.height - renderH) / 2;
 
-      // sticker center (screen px relative to stage)
-      const screenCenterX = (stRect.left - stageRect.left) + stRect.width/2;
-      const screenCenterY = (stRect.top  - stageRect.top ) + stRect.height/2;
+      // Sticker center (we use the same origin you drag: % of stage)
+      const screenX = (originX / 100) * stageRect.width;
+      const screenY = (originY / 100) * stageRect.height;
 
-      // map to video pixels
-      let vx = ((screenCenterX - offsetX) / renderW) * vw;
-      let vy = ((screenCenterY - offsetY) / renderH) * vh;
+      // Map center to raw video pixels
+      let vx = ((screenX - offsetX) / renderW) * vw;
+      let vy = ((screenY - offsetY) / renderH) * vh;
       if (usingFront) vx = vw - vx; // mirror correction
 
-      // sticker size on screen -> video pixels
-      const iwVideo = (stRect.width  / renderW) * vw;
-      const ihVideo = (stRect.height / renderH) * vh;
+      // Sticker size on screen BEFORE rotation = CSS width * scale
+      const cssW = parseFloat(getComputedStyle(sticker).width); // base width (no transform)
+      const screenW = cssW * scale;                              // actual displayed width before rotation
+      const screenH = screenW * (sticker.naturalHeight / sticker.naturalWidth);
 
-      // 3) Draw sticker at exact spot & size, honoring rotation
+      // Convert screen size to video pixels
+      const iwVideo = (screenW / renderW) * vw;
+      const ihVideo = (screenH / renderH) * vh;
+
+      // 3) Draw sticker centered at (vx,vy) with correct pre-rotation size, then rotate
       ctx.translate(vx, vy);
       ctx.rotate(rotation * Math.PI/180);
       ctx.drawImage(sticker, -iwVideo/2, -ihVideo/2, iwVideo, ihVideo);
