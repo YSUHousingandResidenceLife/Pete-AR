@@ -37,7 +37,7 @@
     <div class="card">
       <h1>Pete — AR & Selfie 2D</h1>
 
-      <!-- STEP 1 — very short -->
+      <!-- STEP 1 -->
       <div class="section">
         <div class="title"><span class="badge">STEP 1</span> Quick unlock</div>
         <div class="btns pair">
@@ -47,7 +47,7 @@
         <div id="status" class="status lock tiny" style="margin-top:8px;">3D AR is locked. Do Step 1, then return here.</div>
       </div>
 
-      <!-- STEP 2 — choose mode -->
+      <!-- STEP 2 -->
       <div class="row" style="margin-top:14px;">
         <!-- SELFIE MODE 2D -->
         <div class="section">
@@ -55,7 +55,7 @@
             <span class="badge">STEP 2</span> Selfie Mode <span class="badge">2D</span>
           </div>
           <div class="muted tiny" style="margin-bottom:8px;">Front camera + Pete sticker. Capture as a photo.</div>
-          <a class="btn outline" href="selfie/">Open Selfie Mode 2D</a>
+          <a class="btn outline" href="selfie/">Open Selfie Mode 2D (Front Camera)</a>
         </div>
 
         <!-- 3D AR (rear camera) -->
@@ -65,12 +65,17 @@
           </div>
           <div class="muted tiny" style="margin-bottom:8px;">Unlocks after Step 1. Choose your device:</div>
           <div class="btns">
-            <a id="iphoneBtn" class="btn primary disabled" href="#"
+            <!-- iPHONE — AR Quick Look (Drive) -->
+            <a id="iphoneBtn" class="btn primary disabled"
+               href="#"
                data-href="https://drive.google.com/uc?export=download&id=1HiN4_EkPxDbUWEt2jcxWB85iZR8Y3X1C"
                rel="ar" aria-disabled="true" tabindex="-1">
               iPhone — 3D Pete in your space
             </a>
-            <a id="androidBtn" class="btn primary disabled" href="#"
+
+            <!-- ANDROID — Scene Viewer (Drive direct-download GLB) -->
+            <a id="androidBtn" class="btn primary disabled"
+               href="#"
                data-href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownload%26id%3D1yiHuNsmyVQ_BPvOOdRqFM3bWCu7zzmad&title=Pete&mode=ar_preferred"
                aria-disabled="true" tabindex="-1">
               Android — 3D Pete in your space
@@ -105,14 +110,15 @@
       hint.textContent = 'Ready! Tap iPhone or Android for 3D, or use Selfie Mode 2D anytime.';
     }
 
-    // Clicks set a session flag; returning to the page auto-unlocks
+    // Set a flag on click, and unlock immediately too
     const FLAG = 'ysu_hrl_engaged';
     function setFlag(){ sessionStorage.setItem(FLAG, '1'); }
     followBtn.addEventListener('click', setFlag, { passive: true });
     viewBtn.addEventListener('click', setFlag, { passive: true });
     followBtn.addEventListener('click', unlock, { passive: true });
-    viewBtn.addEventListener('click', unlock, { passive: true });
+    viewBtn.addEventListener('click,', unlock, { passive: true });
 
+    // Auto-unlock when returning to the page
     window.addEventListener('pageshow', () => {
       if (sessionStorage.getItem(FLAG) === '1') unlock();
     });
