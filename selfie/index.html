@@ -57,7 +57,6 @@
       </div>
 
       <video id="video" autoplay playsinline muted></video>
-      <!-- Absolute path so the sticker always loads on GitHub Pages -->
       <img id="pete" class="sticker" src="/Perte-AR/assets/pete-sticker.png" alt="Pete sticker" />
       <canvas id="capture"></canvas>
     </div>
@@ -105,11 +104,8 @@
         }
       }
       video.srcObject=currentStream; await video.play().catch(()=>{});
-      video.style.transform=usingFront?'scaleX(-1)':'none'; enableControls(True); starter.classList.add('hidden');
+      video.style.transform=usingFront?'scaleX(-1)':'none'; enableControls(true); starter.classList.add('hidden');
     }
-
-    // fix: JS is case-sensitive
-    function True(){ return true; } // helper to avoid capitalized literal in previous line
 
     startBtn.addEventListener('click', startCamera);
     flipBtn.addEventListener('click',()=>{usingFront=!usingFront; startCamera();});
@@ -171,15 +167,44 @@
     scaleRange.addEventListener('input',e=>{scale=parseFloat(e.target.value);renderSticker();});
     rotateRange.addEventListener('input',e=>{rotation=parseFloat(e.target.value);renderSticker();});
 
-    // Capture
+    // --- Capture with accurate sticker position ---
     function drawComposite(){
-      const w=video.videoWidth||1080,h=video.videoHeight||1920;
-      canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');
-      if(usingFront){ctx.save();ctx.scale(-1,1);ctx.drawImage(video,-w,0,w,h);ctx.restore();} else { ctx.drawImage(video,0,0,w,h); }
-      const cx=(originX/100)*w, cy=(originY/100)*h;
-      const iw=(Math.min(w,h)*0.4)*scale;
+      const vw = video.videoWidth  || 1080;
+      const vh = video.videoHeight || 1920;
+
+      canvas.width  = vw;
+      canvas.height = vh;
+      const ctx = canvas.getContext('2d');
+
+      // 1) Draw the camera frame
+      if(usingFront){
+        ctx.save(); ctx.scale(-1,1);
+        ctx.drawImage(video,-vw,0,vw,vh);
+        ctx.restore();
+      } else {
+        ctx.drawImage(video,0,0,vw,vh);
+      }
+
+      // 2) Map sticker’s screen position to video pixels
+      const stageRect=document.getElementById('stage').getBoundingClientRect();
+      const coverScale=Math.max(stageRect.width/vw, stageRect.height/vh);
+      const renderW=vw*coverScale, renderH=vh*coverScale;
+      const offsetX=(stageRect.width-renderW)/2;
+      const offsetY=(stageRect.height-renderH)/2;
+
+      const screenX=(originX/100)*stageRect.width;
+      const screenY=(originY/100)*stageRect.height;
+
+      let vx=((screenX-offsetX)/renderW)*vw;
+      let vy=((screenY-offsetY)/renderH)*vh;
+      if(usingFront) vx=vw-vx; // mirror correction
+
+      // 3) Draw sticker at mapped position
+      const iw=(Math.min(vw,vh)*0.4)*scale;
       const ih=(sticker.naturalHeight/sticker.naturalWidth)*iw;
-      ctx.translate(cx,cy); ctx.rotate(rotation*Math.PI/180);
+
+      ctx.translate(vx,vy);
+      ctx.rotate(rotation*Math.PI/180);
       ctx.drawImage(sticker,-iw/2,-ih/2,iw,ih);
       ctx.setTransform(1,0,0,1,0,0);
     }
