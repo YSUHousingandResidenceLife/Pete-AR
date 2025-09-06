@@ -150,4 +150,74 @@
     function pointerUp(e){
       activePointers.delete(e.pointerId);
       sticker.releasePointerCapture(e.pointerId);
-      if(activePointers.size<2){ baseDistance=null; baseAngle=n
+      if(activePointers.size<2){ baseDistance=null; baseAngle=null; }
+    }
+
+    sticker.addEventListener('pointerdown',pointerDown);
+    sticker.addEventListener('pointermove',pointerMove);
+    sticker.addEventListener('pointerup',pointerUp);
+    sticker.addEventListener('pointercancel',pointerUp);
+    sticker.addEventListener('pointerleave',pointerUp);
+
+    scaleRange.addEventListener('input',e=>{scale=parseFloat(e.target.value);renderSticker();});
+    rotateRange.addEventListener('input',e=>{rotation=parseFloat(e.target.value);renderSticker();});
+
+    // --- Accurate capture (no left-right reversal) ---
+    function drawComposite(){
+      const vw = video.videoWidth  || 1080;
+      const vh = video.videoHeight || 1920;
+
+      canvas.width  = vw;
+      canvas.height = vh;
+      const ctx = canvas.getContext('2d');
+
+      // 1) Draw video frame to LOOK like preview:
+      //    - Front camera: draw mirrored so output matches the screen
+      //    - Rear camera: draw normal
+      if(usingFront){ ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-vw,0,vw,vh); ctx.restore(); }
+      else { ctx.drawImage(video,0,0,vw,vh); }
+
+      // 2) Map sticker center from screen → video pixels using the *rendered* video rect
+      const videoRect   = video.getBoundingClientRect();
+      const stickerRect = sticker.getBoundingClientRect();
+
+      const screenCX = stickerRect.left + stickerRect.width/2;
+      const screenCY = stickerRect.top  + stickerRect.height/2;
+
+      // Fractional position across the visible video on screen
+      const fx = (screenCX - videoRect.left) / videoRect.width;
+      const fy = (screenCY - videoRect.top ) / videoRect.height;
+
+      // Convert to video pixels. IMPORTANT: do NOT flip x here.
+      // We already drew the video mirrored for front camera, so using fx directly
+      // ensures the saved image matches what you saw on screen.
+      const vx = fx * vw;
+      const vy = fy * vh;
+
+      // 3) Size from CSS width × scale (pre-rotation), mapped to video px
+      const cssW = parseFloat(getComputedStyle(sticker).width);
+      const preRotScreenW = cssW * scale;
+      const preRotScreenH = preRotScreenW * (sticker.naturalHeight / sticker.naturalWidth);
+
+      const iwVideo = (preRotScreenW / videoRect.width ) * vw;
+      const ihVideo = (preRotScreenH / videoRect.height) * vh;
+
+      // 4) Draw centered at (vx,vy) and then rotate
+      ctx.translate(vx, vy);
+      ctx.rotate(rotation * Math.PI/180);
+      ctx.drawImage(sticker, -iwVideo/2, -ihVideo/2, iwVideo, ihVideo);
+      ctx.setTransform(1,0,0,1,0,0);
+    }
+
+    snapBtn.addEventListener('click',()=>{
+      drawComposite();
+      const url=canvas.toDataURL('image/png');
+      dl.href=url; dl.style.display='inline-block'; dl.click();
+      setTimeout(()=>{canvas.width=0;canvas.height=0;},100);
+    });
+
+    // initial render
+    renderSticker();
+  </script>
+</body>
+</html>
