@@ -3,109 +3,94 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pete — AR Experience</title>
+  <title>Pete — AR & Selfie 2D</title>
   <style>
-    :root { --ysu:#cc0000; --bg:#000; --card:#101010; --disabled:#555; }
-    html,body { margin:0; height:100%; background:var(--bg); color:#fff;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
-    .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; }
-    .card { width:min(820px,94vw); background:var(--card); border-radius:20px;
-      box-shadow:0 10px 30px rgba(0,0,0,.4); padding:28px; }
-    h1 { margin:0 0 8px; font-size:24px; }
-    p  { margin:0 0 18px; opacity:.95; line-height:1.35; }
-    .btns { display:flex; flex-direction:column; gap:12px; margin-top:10px; }
-    .btn {
-      display:block; text-align:center; text-decoration:none; font-weight:800;
-      padding:14px 16px; border-radius:999px; border:0; cursor:pointer;
-      transition:transform .06s ease;
-    }
+    :root { --ysu:#cc0000; --bg:#000; --card:#101010; --muted:#888; --disabled:#555; }
+    html,body { margin:0; height:100%; background:var(--bg); color:#fff; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+    .wrap { min-height:100%; display:flex; align-items:center; justify-content:center; padding:22px; }
+    .card { width:min(780px,94vw); background:var(--card); border-radius:18px; box-shadow:0 10px 30px rgba(0,0,0,.4); padding:22px; }
+    h1 { margin:0 0 6px; font-size:22px; }
+    .row { display:grid; gap:14px; }
+    .section { background:rgba(255,255,255,.04); border-radius:14px; padding:14px; }
+    .title { font-weight:900; font-size:13px; letter-spacing:.2px; opacity:.95; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+    .badge { display:inline-block; font-size:11px; font-weight:900; padding:3px 8px; border-radius:999px; background:#fff; color:#000; }
+    .muted { color:#ddd; opacity:.85; font-size:12px; }
+    .btns { display:flex; flex-direction:column; gap:10px; }
+    .btn { display:block; text-align:center; text-decoration:none; font-weight:800; padding:14px 16px; border-radius:999px; border:0; cursor:pointer; transition:transform .06s ease; }
     .btn:active { transform:scale(.98); }
     .primary { background:var(--ysu); color:#fff; }
-    .light   { background:#fff; color:#000; }
-    .outline { background:transparent; color:#fff; 
-      box-shadow:inset 0 0 0 2px rgba(255,255,255,.15); }
-    .disabled {
-      background:var(--disabled) !important; color:#bbb !important;
-      pointer-events:none; cursor:not-allowed; opacity:.7;
+    .light { background:#fff; color:#000; }
+    .outline { background:transparent; color:#fff; box-shadow:inset 0 0 0 2px rgba(255,255,255,.18); }
+    .disabled { background:var(--disabled) !important; color:#bbb !important; pointer-events:none; cursor:not-allowed; opacity:.7; }
+    .tiny { font-size:11px; opacity:.9; }
+    .spacer { height:8px; }
+    .status { font-size:12px; }
+    .lock { color:var(--muted); }
+    .ok { color:#6afc93; }
+    @media (min-width:640px){
+      .pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     }
-    .hint { margin-top:6px; font-size:12px; opacity:.85; }
-    .section-title { margin:14px 0 6px; font-weight:900; font-size:14px; opacity:.9; }
-    .rule { height:1px; background:rgba(255,255,255,.08); margin:14px 0; border:0; }
-    .steps { background:rgba(255,255,255,.04); border-radius:14px; padding:14px; margin:10px 0 6px; }
-    .step { margin:0 0 10px; }
-    .badge { display:inline-block; min-width:22px; height:22px; padding:0 7px;
-      border-radius:999px; background:#fff; color:#000; font-weight:900;
-      font-size:12px; line-height:22px; text-align:center; margin-right:8px; }
-    .small { font-size:12px; opacity:.9; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>Pete — AR Experience</h1>
-      <p class="small">Follow the steps below to unlock 3D AR. 
-      <b>Selfie Mode</b> is also available anytime for front-camera photos with Pete.</p>
+      <h1>Pete — AR & Selfie 2D</h1>
 
-      <!-- Steps -->
-      <div class="steps">
-        <div class="section-title">How it works</div>
-        <p class="step"><span class="badge">1</span><b>First-time viewers:</b> tap <i>Follow @ysu_hrl</i> below, follow the page, then return here.</p>
-        <p class="step"><span class="badge">2</span><b>Returning users:</b> tap <i>View @ysu_hrl</i>, open any post, <b>view & like</b> it, then return here.</p>
-        <p class="step"><span class="badge">3</span>When you come back, the <b>3D AR</b> buttons unlock. Or use <b>Selfie Mode</b> any time.</p>
+      <!-- STEP 1 — very short -->
+      <div class="section">
+        <div class="title"><span class="badge">STEP 1</span> Quick unlock</div>
+        <div class="btns pair">
+          <a id="followBtn" class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">Follow @ysu_hrl (first time)</a>
+          <a id="viewBtn"   class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">View & Like any post (returning)</a>
+        </div>
+        <div id="status" class="status lock tiny" style="margin-top:8px;">3D AR is locked. Do Step 1, then return here.</div>
       </div>
 
-      <div class="btns">
-        <!-- Follow / View -->
-        <a id="followBtn" class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
-          Follow @ysu_hrl (first-time viewers)
-        </a>
-
-        <div class="hint" id="hint">
-          After tapping <b>Follow</b> or <b>View</b>, return here — the AR buttons below will unlock.
+      <!-- STEP 2 — choose mode -->
+      <div class="row" style="margin-top:14px;">
+        <!-- SELFIE MODE 2D -->
+        <div class="section">
+          <div class="title">
+            <span class="badge">STEP 2</span> Selfie Mode <span class="badge">2D</span>
+          </div>
+          <div class="muted tiny" style="margin-bottom:8px;">Front camera + Pete sticker. Capture as a photo.</div>
+          <a class="btn outline" href="selfie/">Open Selfie Mode 2D</a>
         </div>
 
-        <div class="hint">Returning users: you must view and like any post, then return to unlock.</div>
-        <a id="viewBtn" class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">
-          View @ysu_hrl (returning users)
-        </a>
-
-        <hr class="rule" />
-
-        <!-- AR Mode -->
-        <div class="section-title">3D AR Mode (rear camera)</div>
-        <p class="small" style="margin-top:-4px;">World-tracked 3D Pete (rear camera). Unlocks after steps above.</p>
-
-        <a id="androidBtn" class="btn primary disabled"
-           href="#"
-           data-href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownload%26id%3D1yiHuNsmyVQ_BPvOOdRqFM3bWCu7zzmad&title=Pete&mode=ar_preferred"
-           aria-disabled="true" tabindex="-1">
-          3D Pete in your space (Android)
-        </a>
-
-        <a id="iphoneBtn" class="btn light disabled"
-           href="#"
-           data-href="https://drive.google.com/uc?export=download&id=1HiN4_EkPxDbUWEt2jcxWB85iZR8Y3X1C"
-           rel="ar" aria-disabled="true" tabindex="-1">
-          3D Pete in your space (iPhone)
-        </a>
-
-        <hr class="rule" />
-
-        <!-- Selfie Mode -->
-        <div class="section-title">Selfie Mode (front camera)</div>
-        <p class="small" style="margin-top:-4px;">Always available — open your front camera, place Pete on your selfie, and capture a photo.</p>
-        <a class="btn outline" href="selfie/">
-          Selfie with Pete (Front Camera)
-        </a>
+        <!-- 3D AR (rear camera) -->
+        <div class="section">
+          <div class="title">
+            <span class="badge">STEP 2</span> 3D AR (rear camera)
+          </div>
+          <div class="muted tiny" style="margin-bottom:8px;">Unlocks after Step 1. Choose your device:</div>
+          <div class="btns">
+            <a id="iphoneBtn" class="btn primary disabled" href="#"
+               data-href="https://drive.google.com/uc?export=download&id=1HiN4_EkPxDbUWEt2jcxWB85iZR8Y3X1C"
+               rel="ar" aria-disabled="true" tabindex="-1">
+              iPhone — 3D Pete in your space
+            </a>
+            <a id="androidBtn" class="btn primary disabled" href="#"
+               data-href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownload%26id%3D1yiHuNsmyVQ_BPvOOdRqFM3bWCu7zzmad&title=Pete&mode=ar_preferred"
+               aria-disabled="true" tabindex="-1">
+              Android — 3D Pete in your space
+            </a>
+          </div>
+        </div>
       </div>
+
+      <div class="spacer"></div>
+      <div id="hint" class="tiny muted">Tip: after Follow or View/Like, come back to this page — you’ll see “Unlocked”.</div>
     </div>
   </div>
 
   <script>
+    // Elements
     const followBtn  = document.getElementById('followBtn');
     const viewBtn    = document.getElementById('viewBtn');
     const androidBtn = document.getElementById('androidBtn');
     const iphoneBtn  = document.getElementById('iphoneBtn');
+    const statusLine = document.getElementById('status');
     const hint       = document.getElementById('hint');
 
     function unlock() {
@@ -115,16 +100,19 @@
         el.setAttribute('tabindex', '0');
         el.setAttribute('href', el.getAttribute('data-href'));
       });
-      hint.textContent = 'Unlocked — choose Android or iPhone to launch 3D Pete.';
+      statusLine.textContent = '3D AR is unlocked — choose iPhone or Android.';
+      statusLine.classList.remove('lock'); statusLine.classList.add('ok');
+      hint.textContent = 'Ready! Tap iPhone or Android for 3D, or use Selfie Mode 2D anytime.';
     }
 
+    // Clicks set a session flag; returning to the page auto-unlocks
+    const FLAG = 'ysu_hrl_engaged';
+    function setFlag(){ sessionStorage.setItem(FLAG, '1'); }
+    followBtn.addEventListener('click', setFlag, { passive: true });
+    viewBtn.addEventListener('click', setFlag, { passive: true });
     followBtn.addEventListener('click', unlock, { passive: true });
     viewBtn.addEventListener('click', unlock, { passive: true });
 
-    const FLAG = 'ysu_hrl_engaged';
-    [followBtn, viewBtn].forEach(btn => {
-      btn.addEventListener('click', () => sessionStorage.setItem(FLAG, '1'), { passive: true });
-    });
     window.addEventListener('pageshow', () => {
       if (sessionStorage.getItem(FLAG) === '1') unlock();
     });
