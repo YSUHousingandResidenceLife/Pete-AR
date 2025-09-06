@@ -45,6 +45,9 @@
           <a id="viewBtn"   class="btn light" href="https://www.instagram.com/ysu_hrl/" target="_blank" rel="noopener">View & Like any post (returning)</a>
         </div>
         <div id="status" class="status lock tiny" style="margin-top:8px;">3D AR is locked. Do Step 1, then return here.</div>
+        <div class="tiny" style="margin-top:6px;">
+          Having trouble? <a href="#" id="forceUnlock" class="tiny" style="color:#6afc93;">Tap to unlock</a>
+        </div>
       </div>
 
       <!-- STEP 2 -->
@@ -97,6 +100,32 @@
     const iphoneBtn  = document.getElementById('iphoneBtn');
     const statusLine = document.getElementById('status');
     const hint       = document.getElementById('hint');
+    const forceUnlock= document.getElementById('forceUnlock');
+
+    // Robust unlock helpers
+    const FLAG_KEY = 'ysu_hrl_engaged';
+    const FLAG_TS  = 'ysu_hrl_engaged_ts';
+    let pendingEngagement = false;
+
+    function markEngaged() {
+      try {
+        sessionStorage.setItem(FLAG_KEY, '1');
+        localStorage.setItem(FLAG_KEY, '1');
+        localStorage.setItem(FLAG_TS, String(Date.now()));
+      } catch(_) {}
+    }
+
+    function isRecentlyEngaged(minutes=120) {
+      try {
+        if (sessionStorage.getItem(FLAG_KEY) === '1') return true;
+        const ts = parseInt(localStorage.getItem(FLAG_TS) || '0', 10);
+        if (!isNaN(ts)) {
+          const ageMin = (Date.now() - ts) / 60000;
+          return ageMin <= minutes;
+        }
+      } catch(_) {}
+      return false;
+    }
 
     function unlock() {
       [androidBtn, iphoneBtn].forEach(el => {
@@ -110,17 +139,34 @@
       hint.textContent = 'Ready! Tap iPhone or Android for 3D, or use Selfie Mode 2D anytime.';
     }
 
-    // Set a flag on click, and unlock immediately too
-    const FLAG = 'ysu_hrl_engaged';
-    function setFlag(){ sessionStorage.setItem(FLAG, '1'); }
-    followBtn.addEventListener('click', setFlag, { passive: true });
-    viewBtn  .addEventListener('click', setFlag, { passive: true });
-    followBtn.addEventListener('click', unlock,  { passive: true });
-    viewBtn  .addEventListener('click', unlock,  { passive: true });  // ✅ fixed (no stray comma)
+    // Click → mark + (optimistically) unlock
+    function onCTA(e){
+      pendingEngagement = true;   // if the page hides right after, we’ll still mark it
+      markEngaged();
+      unlock();                   // unlock immediately for good UX
+    }
 
-    // Auto-unlock when returning to the page
+    followBtn.addEventListener('click', onCTA, { passive: true });
+    viewBtn  .addEventListener('click', onCTA, { passive: true });
+
+    // If the page becomes hidden right after a tap (deep link to IG app), mark it too
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && pendingEngagement) {
+        markEngaged();
+      }
+    });
+
+    // Auto-unlock when returning to the page (or on first load if already engaged recently)
     window.addEventListener('pageshow', () => {
-      if (sessionStorage.getItem(FLAG) === '1') unlock();
+      if (isRecentlyEngaged()) unlock();
+      pendingEngagement = false;
+    });
+
+    // Manual fallback unlock (in case the browser suppressed the click handler)
+    forceUnlock.addEventListener('click', (e) => {
+      e.preventDefault();
+      markEngaged();
+      unlock();
     });
   </script>
 </body>
