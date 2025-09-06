@@ -73,7 +73,7 @@
               iPhone — 3D Pete in your space
             </a>
 
-            <!-- ANDROID — Scene Viewer (Drive direct-download GLB) -->
+            <!-- ANDROID — Scene Viewer (Drive GLB) -->
             <a id="androidBtn" class="btn primary disabled"
                href="#"
                data-href="https://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fdrive.google.com%2Fuc%3Fexport%3Ddownload%26id%3D1yiHuNsmyVQ_BPvOOdRqFM3bWCu7zzmad&title=Pete&mode=ar_preferred"
@@ -114,9 +114,9 @@
     const FLAG = 'ysu_hrl_engaged';
     function setFlag(){ sessionStorage.setItem(FLAG, '1'); }
     followBtn.addEventListener('click', setFlag, { passive: true });
-    viewBtn.addEventListener('click', setFlag, { passive: true });
-    followBtn.addEventListener('click', unlock, { passive: true });
-    viewBtn.addEventListener('click,', unlock, { passive: true });
+    viewBtn  .addEventListener('click', setFlag, { passive: true });
+    followBtn.addEventListener('click', unlock,  { passive: true });
+    viewBtn  .addEventListener('click', unlock,  { passive: true });  // ✅ fixed (no stray comma)
 
     // Auto-unlock when returning to the page
     window.addEventListener('pageshow', () => {
