@@ -20,20 +20,22 @@
       display:none;
     }
     .controls {
-      display:flex; gap:10px; padding:10px; background:rgba(0,0,0,.7);
-      border-top:1px solid rgba(255,255,255,.1);
+      display:flex; flex-direction:column; gap:12px; padding:12px;
+      background:rgba(0,0,0,.75); border-top:1px solid rgba(255,255,255,.1);
     }
+    .sliders { display:flex; gap:12px; }
+    .sliders label { font-size:12px; margin-right:6px; }
+    .sliders .range { flex:1; display:flex; align-items:center; gap:6px; }
     button, .btn {
-      padding:12px 14px; border:0; border-radius:999px; font-weight:800; cursor:pointer;
-      background:#fff; color:#000;
+      padding:14px 16px; border:0; border-radius:999px; font-weight:800; cursor:pointer;
+      background:#fff; color:#000; font-size:15px;
     }
     .btn-primary { background:var(--ysu); color:#fff; }
-    .range { flex:1; display:flex; align-items:center; gap:10px; }
-    input[type="range"] { width:100%; }
     .hint { padding:8px 12px; font-size:12px; opacity:.85; }
-    .start { position:relative; z-index:2; display:flex; flex-direction:column; gap:10px;
-      align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.5); border-radius:16px; }
-    .error { color:#ffb4b4; font-size:13px; line-height:1.3; max-width:680px; }
+    .start { position:absolute; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:10px;
+      background:rgba(0,0,0,.6); z-index:2; }
+    .error { color:#ffb4b4; font-size:13px; line-height:1.3; max-width:680px; text-align:center; }
     .hidden { display:none !important; }
   </style>
 </head>
@@ -59,142 +61,87 @@
       <canvas id="capture"></canvas>
     </div>
 
-    <div class="hint">Tip: pinch to scale, two fingers to rotate, drag to move Pete.</div>
+    <div class="hint">Drag Pete to move, pinch to scale, twist with two fingers to rotate.</div>
 
     <div class="controls">
-      <div class="range">
-        <label for="scale">Scale</label>
-        <input id="scale" type="range" min="0.4" max="2.0" step="0.02" value="1" disabled>
+      <div class="sliders">
+        <div class="range">
+          <label for="scale">Scale</label>
+          <input id="scale" type="range" min="0.5" max="2.0" step="0.02" value="1" disabled>
+        </div>
+        <div class="range">
+          <label for="rotate">Rotate</label>
+          <input id="rotate" type="range" min="-45" max="45" step="1" value="0" disabled>
+        </div>
       </div>
-      <div class="range">
-        <label for="rotate">Rotate</label>
-        <input id="rotate" type="range" min="-45" max="45" step="1" value="0" disabled>
-      </div>
-      <button id="snap" class="btn-primary" disabled>Capture Photo</button>
+      <button id="snap" class="btn-primary" disabled>📸 Capture Selfie</button>
       <a id="download" class="btn" download="pete-selfie.png" style="display:none;">Download</a>
     </div>
   </div>
 
   <script>
-    const video = document.getElementById('video');
-    const flipBtn = document.getElementById('flip');
-    const startBtn = document.getElementById('start');
-    const starter = document.getElementById('starter');
-    const errBox = document.getElementById('err');
-    const sticker = document.getElementById('pete');
-    const scaleRange = document.getElementById('scale');
-    const rotateRange = document.getElementById('rotate');
-    const canvas = document.getElementById('capture');
-    const snapBtn = document.getElementById('snap');
-    const dl = document.getElementById('download');
+    const video=document.getElementById('video'), flipBtn=document.getElementById('flip');
+    const startBtn=document.getElementById('start'), starter=document.getElementById('starter');
+    const errBox=document.getElementById('err'), sticker=document.getElementById('pete');
+    const scaleRange=document.getElementById('scale'), rotateRange=document.getElementById('rotate');
+    const canvas=document.getElementById('capture'), snapBtn=document.getElementById('snap'), dl=document.getElementById('download');
+    let usingFront=true, currentStream;
 
-    let usingFront = true;
-    let currentStream;
+    function enableControls(on){ [scaleRange,rotateRange,snapBtn].forEach(el=>el.disabled=!on); if(on) sticker.style.display='block'; }
+    function showError(msg){ errBox.textContent=msg; errBox.classList.remove('hidden'); }
 
-    function enableControls(on) {
-      [scaleRange, rotateRange, snapBtn].forEach(el => el.disabled = !on);
-      if (on) sticker.style.display = 'block';
-    }
-
-    function showError(msg) {
-      errBox.textContent = msg;
-      errBox.classList.remove('hidden');
-    }
-
-    async function startCamera() {
-      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-      video.muted = true; video.setAttribute('playsinline','');
-      try {
-        currentStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: usingFront ? 'user' : { exact: 'environment' } }, audio:false
-        });
-      } catch {
-        currentStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: usingFront ? 'user' : 'environment' }, audio:false
-        });
-      }
-      video.srcObject = currentStream;
-      await video.play().catch(()=>{});
-      video.style.transform = usingFront ? 'scaleX(-1)' : 'none';
-      enableControls(true);
-      starter.classList.add('hidden');
+    async function startCamera(){
+      if(currentStream) currentStream.getTracks().forEach(t=>t.stop());
+      video.muted=true; video.setAttribute('playsinline','');
+      try{
+        currentStream=await navigator.mediaDevices.getUserMedia({ video:{facingMode:usingFront?'user':{exact:'environment'}}, audio:false });
+      }catch{ currentStream=await navigator.mediaDevices.getUserMedia({ video:{facingMode:usingFront?'user':'environment'}, audio:false }); }
+      video.srcObject=currentStream; await video.play().catch(()=>{});
+      video.style.transform=usingFront?'scaleX(-1)':'none'; enableControls(true); starter.classList.add('hidden');
     }
 
     startBtn.addEventListener('click', startCamera);
-    flipBtn.addEventListener('click', () => { usingFront = !usingFront; startCamera(); });
+    flipBtn.addEventListener('click',()=>{usingFront=!usingFront; startCamera();});
 
     // Sticker transforms
-    let startX=0, startY=0, originX=50, originY=55;
-    let scale=1, rotation=0;
+    let originX=50, originY=55, scale=1, rotation=0;
     let activePointers=new Map(), baseDistance=null, baseAngle=null;
 
-    function renderSticker() {
-      sticker.style.left = originX + '%';
-      sticker.style.top = originY + '%';
-      sticker.style.transform = `translate(-50%,-50%) rotate(${rotation}deg) scale(${scale})`;
-    }
+    function renderSticker(){ sticker.style.left=originX+'%'; sticker.style.top=originY+'%'; sticker.style.transform=`translate(-50%,-50%) rotate(${rotation}deg) scale(${scale})`; }
 
-    function pointerDown(e){
-      activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-      sticker.setPointerCapture(e.pointerId);
-      startX = e.clientX; startY = e.clientY;
-      if (activePointers.size === 2) {
-        const pts=[...activePointers.values()];
-        baseDistance=Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
-        baseAngle=Math.atan2(pts[1].y-pts[0].y, pts[1].x-pts[0].x);
-      }
-    }
+    function pointerDown(e){ activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY}); sticker.setPointerCapture(e.pointerId); }
     function pointerMove(e){
-      if (!activePointers.has(e.pointerId)) return;
-      activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-      if (activePointers.size===1){
-        const dx=e.clientX-startX, dy=e.clientY-startY;
-        const stage=document.getElementById('stage').getBoundingClientRect();
-        originX=Math.min(100, Math.max(0, originX+(dx/stage.width)*100));
-        originY=Math.min(100, Math.max(0, originY+(dy/stage.height)*100));
-        startX=e.clientX; startY=e.clientY;
-      } else if (activePointers.size===2){
+      if(!activePointers.has(e.pointerId)) return; activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(activePointers.size===2){
         const pts=[...activePointers.values()];
-        const dist=Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
-        const ang=Math.atan2(pts[1].y-pts[0].y, pts[1].x-pts[0].x);
-        if (baseDistance) scale=Math.min(2,Math.max(0.4,scale*(dist/baseDistance)));
-        if (baseAngle!==null) rotation+=(ang-baseAngle)*180/Math.PI;
+        const dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y), ang=Math.atan2(pts[1].y-pts[0].y,pts[1].x-pts[0].x);
+        if(baseDistance){ scale=Math.min(2,Math.max(0.5,scale*(dist/baseDistance))); }
+        if(baseAngle!==null){ rotation+=((ang-baseAngle)*180/Math.PI)/2; } // less sensitive
+        baseDistance=dist; baseAngle=ang;
         scaleRange.value=scale.toFixed(2); rotateRange.value=rotation.toFixed(0);
       }
       renderSticker();
     }
-    function pointerUp(e){ activePointers.delete(e.pointerId); sticker.releasePointerCapture(e.pointerId); }
+    function pointerUp(e){ activePointers.delete(e.pointerId); sticker.releasePointerCapture(e.pointerId); if(activePointers.size<2){ baseDistance=null; baseAngle=null; } }
 
     sticker.addEventListener('pointerdown',pointerDown);
     sticker.addEventListener('pointermove',pointerMove);
     sticker.addEventListener('pointerup',pointerUp);
     sticker.addEventListener('pointercancel',pointerUp);
 
-    scaleRange.addEventListener('input', e => { scale=parseFloat(e.target.value); renderSticker(); });
-    rotateRange.addEventListener('input', e => { rotation=parseFloat(e.target.value); renderSticker(); });
+    scaleRange.addEventListener('input',e=>{scale=parseFloat(e.target.value);renderSticker();});
+    rotateRange.addEventListener('input',e=>{rotation=parseFloat(e.target.value);renderSticker();});
 
-    // Capture composite
+    // Capture
     function drawComposite(){
-      const w=video.videoWidth||1080, h=video.videoHeight||1920;
-      canvas.width=w; canvas.height=h;
-      const ctx=canvas.getContext('2d');
-      if(usingFront){ ctx.save(); ctx.scale(-1,1); ctx.drawImage(video,-w,0,w,h); ctx.restore();}
-      else ctx.drawImage(video,0,0,w,h);
-      const cx=(originX/100)*w, cy=(originY/100)*h;
-      const iw=(Math.min(w,h)*0.4)*scale;
-      const ih=(sticker.naturalHeight/sticker.naturalWidth)*iw;
-      ctx.translate(cx,cy); ctx.rotate(rotation*Math.PI/180);
-      ctx.drawImage(sticker,-iw/2,-ih/2,iw,ih);
-      ctx.setTransform(1,0,0,1,0,0);
+      const w=video.videoWidth||1080,h=video.videoHeight||1920;
+      canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');
+      if(usingFront){ctx.save();ctx.scale(-1,1);ctx.drawImage(video,-w,0,w,h);ctx.restore();}else ctx.drawImage(video,0,0,w,h);
+      const cx=(originX/100)*w, cy=(originY/100)*h; const iw=(Math.min(w,h)*0.4)*scale; const ih=(sticker.naturalHeight/sticker.naturalWidth)*iw;
+      ctx.translate(cx,cy); ctx.rotate(rotation*Math.PI/180); ctx.drawImage(sticker,-iw/2,-ih/2,iw,ih); ctx.setTransform(1,0,0,1,0,0);
     }
 
-    snapBtn.addEventListener('click',()=>{
-      drawComposite();
-      const url=canvas.toDataURL('image/png');
-      dl.href=url; dl.style.display='inline-block'; dl.click();
-      // Reset so video continues
-      setTimeout(()=>{canvas.width=0;canvas.height=0;},100);
-    });
+    snapBtn.addEventListener('click',()=>{ drawComposite(); const url=canvas.toDataURL('image/png'); dl.href=url; dl.style.display='inline-block'; dl.click(); setTimeout(()=>{canvas.width=0;canvas.height=0;},100); });
   </script>
 </body>
 </html>
